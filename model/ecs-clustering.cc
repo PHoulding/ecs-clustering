@@ -57,7 +57,7 @@ void ecsClusterApp::ScheduleClusterFormationWatchdog() {
   m_cluster_watchdog_event = Simulator::Schedule(m_peer_timeout, &ecsClusterApp::ClusterFormation, this);
 }
 void ecsClusterApp::ClusterFormation() {
-
+  //TODO: Write cluster formation step. Incorporate all nodes to have their node status inside
 }
 
 } //namespace ecs
