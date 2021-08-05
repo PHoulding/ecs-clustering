@@ -4,9 +4,9 @@
 #include "ns3/ecs-clustering-helper.h"
 
 using namespace ns3;
+using namespace ecs;
 
-
-int 
+int
 main (int argc, char *argv[])
 {
   bool verbose = true;
@@ -22,5 +22,3 @@ main (int argc, char *argv[])
   Simulator::Destroy ();
   return 0;
 }
-
-
