@@ -9,12 +9,15 @@ using namespace ecs;
 int
 main (int argc, char *argv[])
 {
-  bool verbose = true;
+  RngSeedManager::SetSeed(7);
+  Time::SetResolution(Time::NS);
 
-  CommandLine cmd (__FILE__);
-  cmd.AddValue ("verbose", "Tell application to log if true", verbose);
+  SimulationParameters params;
+  bool ok;
+  std::tie(params, ok) = SimulationParameters::parse(argc,argv);
 
-  cmd.Parse (argc,argv);
+
+
 
   /* ... */
 

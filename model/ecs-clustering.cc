@@ -24,8 +24,29 @@ using namespace ns3;
 NS_OBJECT_ENSURE_REGISTERED(ecsClusterApp);
 
 TypeID ecsClusterApp::GetTypeId() {
-  static TypeId id = "asd";
+  static TypeId id = TypeId("ecs-clustering:EcsClusterApp")
+    .SetParent<Application>()
+    .SetGroupName("Applications")
+    .AddConstructor<ecsClusterApp>()
+    .AddAttribute(
+      "NeighborhoodSize",
+      "Number of hops considered to be in the neightborhood of this node (h)",
+      UintegerValue(1),
+      MakeUintegerAccessor(&ecsClusterApp::m_neighborhoodHops),
+      MakeUintegerChecker<uint32_t>(1))
+    .AddAttribute(
+      "Node Status",
+      "The status of the node based on it's role in the network/cluster (n_s)",
+      EnumValue(&ecsClusterApp::Node_Status),
+      MakeEnumChecker<Node_Status>(
+        Node_Status::UNSPECIFIED, "Node_Status::UNSPECIFIED",
+        Node_Status::CLUSTER_HEAD, "Node_Status::CLUSTER_HEAD",
+        Node_Status::CLUSTER_MEMBER, "Node_Status::CLUSTER_MEMBER",
+        Node_Status::CLUSTER_GATEWAY, "Node_Status::CLUSTER_GATEWAY",
+        Node_Status::STANDALONE, "Node_Status::STANDALONE",
+        Node_Status::CLUSTER_GUEST, "Node_Status::CLUSTER_GUEST"))
 }
+
 //override
 void ecsClusterApp::StartApplication() {
   if(m_state == State::RUNNING) {

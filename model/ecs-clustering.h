@@ -9,7 +9,7 @@ using namespace ns3;
 
 class ecsClusterApp : public Application {
   public:
-    enum class Node_Status { UNSPECIFIED, CLUSTER_HEAD,
+    enum Node_Status { UNSPECIFIED, CLUSTER_HEAD,
                       CLUSTER_MEMBER, CLUSTER_GATEWAY,
                       STANDALONE, CLUSTER_GUEST };
     enum class State { NOT_STARTED = 0, RUNNING, STOPPED };
