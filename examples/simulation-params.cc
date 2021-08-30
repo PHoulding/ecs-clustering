@@ -81,6 +81,10 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
       optStaggeredVariance);
   cmd.AddValue("partitionNodes", "The number of nodes placed per partition", optNodesPerPartition);
   cmd.AddValue(
+    "hops",
+    "The number of hops to consider in the neighborhood of a node",
+    optNeighborhoodSize);
+  cmd.AddValue(
       "forwardingThreshold",
       "The delivery probability threshold for a node to forward data",
       optForwardingThreshold);
@@ -186,7 +190,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   result.area = SimulationArea(
       std::pair<double, double>(0.0, 0.0),
       std::pair<double, double>(optAreaWidth, optAreaLength));
-  result.rows = optRows;
+  result.rows = optRows;''
   result.cols = optCols;
 
   result.totalNodes = optTotalNodes;

@@ -129,11 +129,27 @@ main (int argc, char *argv[])
   adhocAddresses.SetBase("10.1.0.0", "255.255.0.0");
   adhocAddresses.Assign(adhocDevices);
 
+  ecsClusterAppHelper ecs;
+  ecs.SetAttribute("NeighborhoodSize", UintegerValue(params.optNeighborhoodSize));
+  ecs.SetAttribute("NodeStatus", EnumValue(Node_Status::UNSPECIFIED));
 
+  ApplicationContainer ecsApps = ecs.Install(allAdHocNodes);
+  if(params.staggeredStart) {
+    Ptr<NormalRandomVariable> jitter = CreateObject<NormalRandomVariable>();
+    jitter->SetAttribute("Mean", DoubleValue(0));
+    jitter->SetAttribute("Variance", DoubleValue(params.staggeredVariance));
+    ecsApps.StartWithJitter(Seconds(0), jitter);
+  } else {
+    ecsApps.Start(Seconds(0));
+  }
+  ecsApps.Stop(params.runtime);
 
-  /* ... */
-
+  NS_LOG_UNCOND("Running simulation for " << params.runtime.GetSeconds() << " seconds...");
   Simulator::Run ();
   Simulator::Destroy ();
+  NS_LOG_UNCOND("Done.");
+
+  //ecsClusterApp::CleanUp();  (uncomment when using protobuf)
+
   return 0;
 }

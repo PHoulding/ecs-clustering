@@ -35,7 +35,7 @@ TypeID ecsClusterApp::GetTypeId() {
       MakeUintegerAccessor(&ecsClusterApp::m_neighborhoodHops),
       MakeUintegerChecker<uint32_t>(1))
     .AddAttribute(
-      "Node Status",
+      "NodeStatus",
       "The status of the node based on it's role in the network/cluster (n_s)",
       EnumValue(&ecsClusterApp::Node_Status),
       MakeEnumChecker<Node_Status>(
