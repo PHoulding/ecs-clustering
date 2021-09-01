@@ -201,13 +201,23 @@ Ptr<Packet> ecsClusterApp::GenerateLookup(
 
   return GeneratePacket(message);
 }
-Ptr<Packet> ecsClusterApp::GeneratePing(double profile) {
+Ptr<Packet> ecsClusterApp::GeneratePing() {
   ecs::packets::Message message;
   message.set_id(GenerateMessageID());
   message.set_timestamp(Simulator::Now().GetMilliSeconds());
 
   ecs:packets::Ping* ping = message.mutable_ping();
-  ping->set_delivery_probability(profile);
+  //ping->set_delivery_probability(profile);
+
+  return GeneratePacket(message);
+}
+
+Ptr<Packet> ecsClusterApp::GenerateClusterHeadClaim() {
+  ecs::packets::Message message;
+  message.set_id(GenerateMessageID());
+  message.set_timestamp(Simulator::Now().GetMilliSeconds());
+
+  message.mutable_claim();
 
   return GeneratePacket(message);
 }
@@ -265,7 +275,7 @@ Marshall calls this section the "send messages" section   :)
 I imagine this is just functions that call the helper functions in the other sending section
 **/
 void ecsClusterApp::SendPing() {
-  Ptr<Packet> message = GeneratePing(CalculateProfile());
+  Ptr<Packet> message = GeneratePing();
   BroadcastToNeighbors(message);
 }
 
@@ -273,6 +283,68 @@ void ecsClusterApp::SendResponse(uint64_t requestID, uint32_t nodeID) {
   Ptr<Packet> message = GenerateResponse(requestID);
   SendMessage(Ipv4Address(nodeID), message);
 }
+
+void ecsClusterApp::SendClusterHeadClaim() {
+  Ptr<Packet> message = GenerateClusterHeadClaim();
+  BroadcastToNeighbors(message);
+}
+
+/**
+Event schedulers
+**/
+void ecsClusterApp::SchedulePing() {
+  if(m_state != State::RUNNNING) return;
+  SendPing();
+
+  m_ping_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::SchedulePing, this);
+}
+
+void ecsClusterApp::ScheduleClusterHeadClaim() {
+  if(m_state != State::RUNNING) return;
+
+  SendClusterHeadClaim();
+  m_node_status = CLUSTER_HEAD;
+
+  m_CH_claim = Simulator::Schedule(m_profileDelay, &ecsClusterApp::ScheduleClusterHeadClaim, this);
+}
+//TODO: add more scheduled events????
+
+/**
+Message handlers
+**/
+//This is the main message handler
+void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
+  Ptr<Packet> packet;
+  Address from;
+  Address localAddress;
+
+  while ((packet = socket->RecvFrom(from))) {
+    socket->GetSockName(localAddress);
+    NS_LOG_INFO(
+      "At time " << Simulator::Now().GetSeconds() << "s client recieved " << packet->GetSize()
+                 << " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4() << " port "
+                 << InetSocketAddress::ConvertFrom(from).GetPort());
+
+    uint32_t srcAddress = InetSocketAddress::ConvertFrom(from).GetIpv4().Get();
+    ecs::packets::Message message = ParsePacket(packet);
+
+    if(CheckDuplicateMessage(message.id())) {
+      NS_LOG_INFO("already recieved this message, dropping.");
+      stats.incDuplicate();
+      return;
+    }
+    if(message.hasPing()) {
+      stats.incReceived(Stats::Type::PING);
+
+    } else if(message.hasClaim()) {
+
+    } else if(message.hasResponse()) {
+
+    }
+
+  }
+}
+
 
 
 
