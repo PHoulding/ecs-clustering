@@ -334,18 +334,39 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       return;
     }
     if(message.hasPing()) {
+      //ping received
       stats.incReceived(Stats::Type::PING);
-
+      HandlePing(srcAddress, message.ping().delivery_probability());
     } else if(message.hasClaim()) {
-
+      //CH claim received
+      stats.incReceived(Stats::Type::Claim);
+      HandleClaim(srcAddress)
     } else if(message.hasResponse()) {
-
+      //response received
+      stats.incReceived(Stats::Type::Response);
+      HandleResponse(srcAddress,message.response().node_status());
+    } else {
+      stats.incReceived(Stats::Type::UKNOWN);
+      std::cout << "handling message: other\n";
+      NS_LOG_WARN("Unknown message type");
     }
-
   }
 }
+/**
+Message handlers below. Above is sorting the messages from one another
+**/
+//Handles pings being received from another node (probably will be used to update information table)
+void ecsClusterApp::HandlePing(uint32_t nodeID) {
 
+}
+//Handles another node sending a clusterhead claim. Follows the algorithm from the paper
+void ecsClusterApp::HandleClaim(uint32_t nodeID) {
 
+}
+//Handles response from a given node, possibly have to fix the node_status to a better type later
+void ecsClusterApp::HandleResponse(uint32_t nodeID, String node_status) {
+
+}
 
 
 
