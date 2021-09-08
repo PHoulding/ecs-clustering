@@ -184,27 +184,11 @@ void ecsClusterApp::SendToNodes(Ptr<Packet> message, const std::set<uint32_t> no
 /**
 Generate messages to be sent
 **/
-//Possibly remove this first one as its mainly for data lookup in RHPMAN
-Ptr<Packet> ecsClusterApp::GenerateLookup(
-    uint64_t messageID,
-    uint64_t dataID,
-    double sigma,
-    uint32_t srcNode) {
-  ecs::packets::Message message;
-  message.set_id(messageID);
-  message.set_timestamp(Simulator::Now().GetMilliSeconds());
-
-  ecs::packets::Request* request = message.mutable_request();
-  request->set_data_id(dataID);
-  request->set_requestor(srcNode);
-  request->set_sigma(sigma);
-
-  return GeneratePacket(message);
-}
-Ptr<Packet> ecsClusterApp::GeneratePing() {
+Ptr<Packet> ecsClusterApp::GeneratePing(uint8_t node_status) {
   ecs::packets::Message message;
   message.set_id(GenerateMessageID());
   message.set_timestamp(Simulator::Now().GetMilliSeconds());
+  message.set_nodeStatus(node_status);
 
   ecs:packets::Ping* ping = message.mutable_ping();
   //ping->set_delivery_probability(profile);
@@ -274,8 +258,8 @@ void ecsClusterApp::SendMessage(Ipv4Address dest, Ptr<Packet> packet) {
 Marshall calls this section the "send messages" section   :)
 I imagine this is just functions that call the helper functions in the other sending section
 **/
-void ecsClusterApp::SendPing() {
-  Ptr<Packet> message = GeneratePing();
+void ecsClusterApp::SendPing(uint8_t node_status) {
+  Ptr<Packet> message = GeneratePing(node_status);
   BroadcastToNeighbors(message);
 }
 
@@ -294,7 +278,7 @@ Event schedulers
 **/
 void ecsClusterApp::SchedulePing() {
   if(m_state != State::RUNNNING) return;
-  SendPing();
+  SendPing(this.Node_Status);
 
   m_ping_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::SchedulePing, this);
 }
@@ -336,15 +320,38 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
     if(message.hasPing()) {
       //ping received
       stats.incReceived(Stats::Type::PING);
-      HandlePing(srcAddress, message.ping().delivery_probability());
+      HandlePing(srcAddress, message.ping().delivery_probability(), message.node_status());
     } else if(message.hasClaim()) {
       //CH claim received
       stats.incReceived(Stats::Type::Claim);
-      HandleClaim(srcAddress)
+      HandleClaim(srcAddress);
     } else if(message.hasResponse()) {
-      //response received
+      //response received, could be:
+      //response to ping,
       stats.incReceived(Stats::Type::Response);
       HandleResponse(srcAddress,message.response().node_status());
+    } else if(message.hasMeeting()) {
+      //clusterhead meeting, handle by sending number of connected nodes
+      //(i.e. information table size) to other. if less table size, resign
+      stats.incReceived(Stats::Type::ClusterHeadMeeting);
+      HandleMeeting(srcAddress,message.meeting().node_status(),message.meeting().neighborhood_size());
+    } else if(message.hasClusterHeadResign()) {
+      //clusterhead meeting has occured, and the node broadcasting this message
+      //has a smaller information table, thus causing it to resign. This message
+      //is broadcasted to all neighbors on the information table. A node recieving this
+      //message must then ping all neighbors to figure out it's new node status.
+      stats.incReceived(Stats::Type::ClusterHeadResign);
+      HandleCHResign(srcAddress);
+    } else if(message.hasNeighborhoodInquiry()) {
+      //Happens when a node needs to learn it's neighbors' node types in order
+      //to decide it's own
+      stats.incReceived(Stats::Type::NeighborhoodInquiry);
+      HandleInquiry(srcAddress,message.node_status());
+    } else if() {
+      //Simple message relaying a given node's node_status to another node.
+      //Sent when a clusterhead claim is received during cluster formation
+      stats.incReceived(Stats::Type::StatusRelay);
+      HandleStatus(srcAddress,message.node_status());
     } else {
       stats.incReceived(Stats::Type::UKNOWN);
       std::cout << "handling message: other\n";
@@ -355,19 +362,73 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
 /**
 Message handlers below. Above is sorting the messages from one another
 **/
-//Handles pings being received from another node (probably will be used to update information table)
-void ecsClusterApp::HandlePing(uint32_t nodeID) {
 
+//Handles pings being received from another node (probably will be used to update information table)
+void ecsClusterApp::HandlePing(uint32_t nodeID, uint8_t node_status) {
+  m_informationTable[nodeID] = node_status;
+  if(node_status && this.Node_Status==CLUSTER_HEAD) {
+    SendCHMeeting(nodeID);
+  } else if(node_status && this.Node_Status==CLUSTER_MEMBER) {
+    this.Node_Status = CLUSTER_GATEWAY;
+    SendStatus(nodeID, generateNodeStatusToUint());
+  } else if(node_status && this.Node_Status==CLUSTER_GUEST) {
+    this.Node_Status = CLUSTER_MEMBER;
+    SendStatus(nodeID, generateNodeStatusToUint());
+  }
 }
 //Handles another node sending a clusterhead claim. Follows the algorithm from the paper
 void ecsClusterApp::HandleClaim(uint32_t nodeID) {
-
+  //if in standoff, automatically join their cluster
+  if(Simulator::Now() < m_standoff_time) {
+    this.Node_Status = CLUSTER_MEMBER;
+    SendStatus(nodeID, generateNodeStatusToUint());
+  } else {
+    if(this.Node_Status==CLUSTER_GUEST) {
+      this.Node_Status = CLUSTER_MEMBER;
+    } else if(this.Node_Status==CLUSTER_MEMBER) {
+      this.Node_Status = CLUSTER_GATEWAY;
+      SendPing(generateNodeStatusToUint());
+    }
+    SendStatus(nodeID);
+  }
+}
+uint8_t ecsClusterApp::generateNodeStatusToUint() {
+  switch (this.Node_Status) {
+    case UNSPECIFIED:
+      return 0;
+    case CLUSTER_HEAD:
+      return 1;
+    case CLUSTER_MEMBER:
+      return 2;
+    case CLUSTER_GATEWAY:
+      return 3;
+    case STANDALONE:
+      return 4;
+    case CLUSTER_GUEST:
+      return 5;
+  }
 }
 //Handles response from a given node, possibly have to fix the node_status to a better type later
-void ecsClusterApp::HandleResponse(uint32_t nodeID, String node_status) {
+void ecsClusterApp::HandleResponse(uint32_t nodeID, uint8_t node_status) {
 
 }
+//Handles ClusterHeadMeeting messaage received
+void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size) {
 
+}
+//Handles CHResign message
+void ecsClusterApp::HandleCHResign(uint32_t nodeID) {
+
+}
+//Handles neighborhood inquiry from another node and updates this node's information table
+//Sent from standalones and CHs
+void ecsClusterApp::HandleInquiry(uint32_t nodeID, uint8_t node_status) {
+
+}
+//Handles status message from neighbor in response to clusterhead claim during standoff
+void ecsClusterApp::HandleStatus(uint32_t nodeID, uint8_t node_status) {
+  m_informationTable[nodeID] = node_status;
+}
 
 
 void ecsClusterApp::ScheduleClusterFormationWatchdog() {
