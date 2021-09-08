@@ -2,9 +2,11 @@
 
 /**
 Random thoughts:
-  - Defining access points? is this something I need to do or does the Simulator
-    already just do it?
+  - Defining access points? is this something I need to do or does the Simulator already just do it?
   - Sending pings & messages, do they need to be scheduled for each time? Something to look into.
+  - HandleClaim, would a clusterhead ever get this message (i.e. a node is trying to claim CH while it is one?)
+  - HandleResponse, delete???
+  - CH meeting with two CHs of equal degree was never discussed in paper. This will need to be noted as an assumption.
 **/
 
 #include <algorithm>
@@ -374,8 +376,18 @@ void ecsClusterApp::HandlePing(uint32_t nodeID, uint8_t node_status) {
 void ecsClusterApp::HandleClaim(uint32_t nodeID) {
   //if in standoff, automatically join their cluster
   if(Simulator::Now() < m_standoff_time) {
-    m_node_status = CLUSTER_MEMBER;
-    SendStatus(nodeID, generateNodeStatusToUint());
+    switch (m_node_status) {
+      case UNSPECIFIED:
+        m_node_status = CLUSTER_MEMBER;
+        SendStatus(nodeID, generateNodeStatusToUint());
+        break;
+      case CLUSTER_MEMBER:
+        m_node_status = CLUSTER_GATEWAY;
+        SendStatus(nodeID, generateNodeStatusToUint());
+        break;
+      default:
+        SendStatus(nodeID, generateNodeStatusToUint());
+    }
   } else {
     //should theoretically be no way a cluster head receives this message??
     //Also no real need to adjust a cluster gateway if it already exists as one
@@ -399,6 +411,41 @@ void ecsClusterApp::HandleClaim(uint32_t nodeID) {
     }
   }
 }
+//Handles response from a given node. I dont think this actually needs to be here right now.
+void ecsClusterApp::HandleResponse(uint32_t nodeID, uint8_t node_status) {
+
+}
+//Handles ClusterHeadMeeting messaage received
+void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size) {
+  if(m_node_status!=CLUSTER_HEAD) {
+    NS_LOG_ERROR("ClusterHead meeting sent to node which isnt a cluster head")
+    return;
+  }
+  //sending node's degree is greater than this node's, therefore resign
+  if(neighborhood_size > m_informationTable.size()) {
+    //Send CHResign
+    //Change my ns to member
+    //Send Status to original node
+  } else if(neighborhood_size < m_informationTable.size()) {
+    //Send CHmeeting back to original with my size
+  } else {
+    //THIS PART WAS NOT ACTUALLY DISCUSSED IN ORIGINAL PAPER
+    //Decide whether neither resigns, or flip a coin i guess..?
+  }
+}
+//Handles CHResign message
+void ecsClusterApp::HandleCHResign(uint32_t nodeID) {
+
+}
+//Handles neighborhood inquiry from another node and updates this node's information table
+//Sent from standalones and CHs
+void ecsClusterApp::HandleInquiry(uint32_t nodeID, uint8_t node_status) {
+
+}
+//Handles status message from neighbor in response to clusterhead claim during standoff
+void ecsClusterApp::HandleStatus(uint32_t nodeID, uint8_t node_status) {
+  m_informationTable[nodeID] = node_status;
+}
 
 uint8_t ecsClusterApp::generateNodeStatusToUint() {
   switch (m_node_status) {
@@ -416,28 +463,6 @@ uint8_t ecsClusterApp::generateNodeStatusToUint() {
       return 5;
   }
 }
-//Handles response from a given node, possibly have to fix the node_status to a better type later
-void ecsClusterApp::HandleResponse(uint32_t nodeID, uint8_t node_status) {
-
-}
-//Handles ClusterHeadMeeting messaage received
-void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size) {
-
-}
-//Handles CHResign message
-void ecsClusterApp::HandleCHResign(uint32_t nodeID) {
-
-}
-//Handles neighborhood inquiry from another node and updates this node's information table
-//Sent from standalones and CHs
-void ecsClusterApp::HandleInquiry(uint32_t nodeID, uint8_t node_status) {
-
-}
-//Handles status message from neighbor in response to clusterhead claim during standoff
-void ecsClusterApp::HandleStatus(uint32_t nodeID, uint8_t node_status) {
-  m_informationTable[nodeID] = node_status;
-}
-
 
 void ecsClusterApp::ScheduleClusterFormationWatchdog() {
   if(m_state != State::RUNNING) return;
