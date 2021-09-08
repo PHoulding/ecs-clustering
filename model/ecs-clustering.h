@@ -22,6 +22,9 @@ class ecsClusterApp : public Application {
     Ptr<Socket> m_socket_recv;
     Ptr<Socket> m_neighborhood_socket;
     Ptr<Socket> m_election_socket;
+
+    Node_Status m_node_status
+    std::map<uint32_t, uint8_t> m_informationTable;
 }
 
 

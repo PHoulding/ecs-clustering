@@ -1,18 +1,10 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 /**
-Steps:
-1) ECS cluster formation step
-  - Set all NODE_STATUS = UNSPECIFIED
-  - All nodes on random timeout (this is undeclared, use like 0ms->1sec?)
-  - Check for received CLUSTERHEAD_CLAIM
-      - NODE_STATUS = CLUSTERMEMBER or = CLUSTERGATEWAY (if multiple received)
-  - Send off CLUSTERHEAD_CLAIM message to all nodes
-      - NODE_STATUS = CLUSTERHEAD
-  - Receive message from nearby for CLUSTERMEMBERs (probably a scheduled wait here)
-      - If no messages received, set NODE_STATUS = STANDALONE
-  - Add node to information table
-2) Cluster maintenance step (recurring during simulation)
+Random thoughts:
+  - Defining access points? is this something I need to do or does the Simulator
+    already just do it?
+  - Sending pings & messages, do they need to be scheduled for each time? Something to look into.
 **/
 
 #include <algorithm>
@@ -190,9 +182,7 @@ Ptr<Packet> ecsClusterApp::GeneratePing(uint8_t node_status) {
   message.set_timestamp(Simulator::Now().GetMilliSeconds());
   message.set_nodeStatus(node_status);
 
-  ecs:packets::Ping* ping = message.mutable_ping();
-  //ping->set_delivery_probability(profile);
-
+  message.mutable_ping();
   return GeneratePacket(message);
 }
 
@@ -272,13 +262,17 @@ void ecsClusterApp::SendClusterHeadClaim() {
   Ptr<Packet> message = GenerateClusterHeadClaim();
   BroadcastToNeighbors(message);
 }
+void ecsClusterApp::SendStatus(uint32_t nodeID) {
+  Ptr<Packet> message = GeneratePing();
+  SendMessage(Ipv4Address(nodeID), message);
+}
 
 /**
 Event schedulers
 **/
 void ecsClusterApp::SchedulePing() {
   if(m_state != State::RUNNNING) return;
-  SendPing(this.Node_Status);
+  SendPing(m_node_status);
 
   m_ping_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::SchedulePing, this);
 }
@@ -366,13 +360,13 @@ Message handlers below. Above is sorting the messages from one another
 //Handles pings being received from another node (probably will be used to update information table)
 void ecsClusterApp::HandlePing(uint32_t nodeID, uint8_t node_status) {
   m_informationTable[nodeID] = node_status;
-  if(node_status && this.Node_Status==CLUSTER_HEAD) {
+  if(node_status && m_node_status==CLUSTER_HEAD) {
     SendCHMeeting(nodeID);
-  } else if(node_status && this.Node_Status==CLUSTER_MEMBER) {
-    this.Node_Status = CLUSTER_GATEWAY;
+  } else if(node_status && m_node_status==CLUSTER_MEMBER) {
+    m_node_status = CLUSTER_GATEWAY;
     SendStatus(nodeID, generateNodeStatusToUint());
-  } else if(node_status && this.Node_Status==CLUSTER_GUEST) {
-    this.Node_Status = CLUSTER_MEMBER;
+  } else if(node_status && m_node_status==CLUSTER_GUEST) {
+    m_node_status = CLUSTER_MEMBER;
     SendStatus(nodeID, generateNodeStatusToUint());
   }
 }
@@ -380,20 +374,34 @@ void ecsClusterApp::HandlePing(uint32_t nodeID, uint8_t node_status) {
 void ecsClusterApp::HandleClaim(uint32_t nodeID) {
   //if in standoff, automatically join their cluster
   if(Simulator::Now() < m_standoff_time) {
-    this.Node_Status = CLUSTER_MEMBER;
+    m_node_status = CLUSTER_MEMBER;
     SendStatus(nodeID, generateNodeStatusToUint());
   } else {
-    if(this.Node_Status==CLUSTER_GUEST) {
-      this.Node_Status = CLUSTER_MEMBER;
-    } else if(this.Node_Status==CLUSTER_MEMBER) {
-      this.Node_Status = CLUSTER_GATEWAY;
-      SendPing(generateNodeStatusToUint());
+    //should theoretically be no way a cluster head receives this message??
+    //Also no real need to adjust a cluster gateway if it already exists as one
+    //    - maybe just send back status as a default
+    switch (m_node_status) {
+      case CLUSTER_MEMBER:
+        m_node_status = CLUSTER_GATEWAY;
+        SendPing(generateNodeStatusToUint());
+        break;
+      case STANDALONE:
+        m_node_status = CLUSTER_MEMBER;
+        m_informationTable[nodeID] = node_status;
+        SendPing(generateNodeStatusToUint());
+        break;
+      case CLUSTER_GUEST:
+        m_node_status = CLUSTER_MEMBER;
+        SendPing(nodeID);
+        break;
+      default:
+        SendStatus(nodeID, generateNodeStatusToUint());
     }
-    SendStatus(nodeID);
   }
 }
+
 uint8_t ecsClusterApp::generateNodeStatusToUint() {
-  switch (this.Node_Status) {
+  switch (m_node_status) {
     case UNSPECIFIED:
       return 0;
     case CLUSTER_HEAD:
