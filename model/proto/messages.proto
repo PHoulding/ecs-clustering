@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+packages ecs.packets
+
+message Message {
+  uint64 id = 1;
+  uint64 timestamp = 2;
+
+  oneof payload {
+    Ping ping = 4;
+    Claim claim = 5;
+    Meeting meeting = 6;
+    Response response = 7;
+
+  }
+}
+
+message Ping {
+}
+
+message Response {
+  uint64 request_id = 1;
+}
+
+message Claim {
+}
+
+message Meeting {
+  uint64 tablesize = 1;
+}

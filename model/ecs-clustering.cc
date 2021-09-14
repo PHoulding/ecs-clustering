@@ -197,7 +197,16 @@ Ptr<Packet> ecsClusterApp::GenerateClusterHeadClaim() {
 
   return GeneratePacket(message);
 }
+Ptr<Packet> ecsClusterApp::GenerateMeeting() {
+  ecs::packets::Message message;
+  message.set_id(GenerateMessageID());
+  message.set_timestamp(Simulator::Now().GetMilliSeconds());
 
+  ecs::packets::Meeting * meeting = message.mutable_meeting();
+  meeting->set_neighborhood_size(m_informationTable.size());
+
+  return GeneratePacket(message);
+}
 Ptr<Packet> ecsClusterApp::GenerateResponse(uint64_t responseTo) {
   ecs::packets::Message message;
   message.set_id(GenerateMessageID());
@@ -208,6 +217,7 @@ Ptr<Packet> ecsClusterApp::GenerateResponse(uint64_t responseTo) {
 
   return GeneratePacket(message);
 }
+
 /**
 Generate packet to be sent around
 **/
@@ -222,6 +232,7 @@ static Ptr<Packet> GeneratePacket(const ecs::packets::Message message) {
   delete[] payload;
   return packet;
 }
+
 
 static ecs::packets::Message ParsePacket(const Ptr<Packet> packet) {
   uint32_t size = packet->GetSize();
@@ -267,6 +278,10 @@ void ecsClusterApp::SendClusterHeadClaim() {
 void ecsClusterApp::SendStatus(uint32_t nodeID) {
   Ptr<Packet> message = GeneratePing();
   SendMessage(Ipv4Address(nodeID), message);
+}
+void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
+  Ptr<Packet> message = GenerateMeeting();
+  SendMessage(nodeID, message)
 }
 
 /**
@@ -422,15 +437,20 @@ void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t
     return;
   }
   //sending node's degree is greater than this node's, therefore resign
-  if(neighborhood_size > m_informationTable.size()) {
+  //EQUAL TO WAS NOT ACTUALLY DISCUSSED IN ORIGINAL PAPER
+  //For simplicity's sake, still resign due to minimizing number of messages.
+  if(neighborhood_size >= m_informationTable.size()) {
     //Send CHResign
+    SendResign(nodeID);
     //Change my ns to member
+    m_node_status = CLUSTER_MEMBER;
     //Send Status to original node
+    SendPing(nodeID);
   } else if(neighborhood_size < m_informationTable.size()) {
     //Send CHmeeting back to original with my size
+    SendCHMeeting(nodeID);
   } else {
-    //THIS PART WAS NOT ACTUALLY DISCUSSED IN ORIGINAL PAPER
-    //Decide whether neither resigns, or flip a coin i guess..?
+
   }
 }
 //Handles CHResign message
