@@ -428,7 +428,7 @@ void ecsClusterApp::HandleClaim(uint32_t nodeID) {
 }
 //Handles response from a given node. I dont think this actually needs to be here right now.
 void ecsClusterApp::HandleResponse(uint32_t nodeID, uint8_t node_status) {
-
+  m_informationTable[nodeID] = node_status;
 }
 //Handles ClusterHeadMeeting messaage received
 void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size) {
@@ -450,23 +450,31 @@ void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t
     //Send CHmeeting back to original with my size
     SendCHMeeting(nodeID);
   } else {
-
+    NS_LOG_ERROR("Somehow got past neighborhood size block??");
   }
 }
 //Handles CHResign message
 void ecsClusterApp::HandleCHResign(uint32_t nodeID) {
-
+  m_informationTable[nodeID] = node_status;
+  //Possibly queue new CH formation??
+  if(m_state != CLUSTER_HEAD) {
+    //iterate through information table, if any heads, break, otherwise send CH claim
+  } else {
+    return;
+  }
 }
 //Handles neighborhood inquiry from another node and updates this node's information table
 //Sent from standalones and CHs
 void ecsClusterApp::HandleInquiry(uint32_t nodeID, uint8_t node_status) {
-
+  m_informationTable[nodeID] = node_status;
+  SendStatus(nodeID, generateNodeStatusToUint());
 }
 //Handles status message from neighbor in response to clusterhead claim during standoff
 void ecsClusterApp::HandleStatus(uint32_t nodeID, uint8_t node_status) {
   m_informationTable[nodeID] = node_status;
 }
 
+//Simple function which translates the Node_Status enum to an integer for easier communication
 uint8_t ecsClusterApp::generateNodeStatusToUint() {
   switch (m_node_status) {
     case UNSPECIFIED:

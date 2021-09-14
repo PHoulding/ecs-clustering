@@ -5,12 +5,13 @@ packages ecs.packets
 message Message {
   uint64 id = 1;
   uint64 timestamp = 2;
+  uint8 node_status = 3;
 
   oneof payload {
-    Ping ping = 4;
-    Claim claim = 5;
-    Meeting meeting = 6;
-    Response response = 7;
+    Ping ping = 5;
+    Claim claim = 6;
+    Meeting meeting = 7;
+    Response response = 8;
 
   }
 }
@@ -18,8 +19,7 @@ message Message {
 message Ping {
 }
 
-message Response {
-  uint64 request_id = 1;
+message inquiry {
 }
 
 message Claim {
