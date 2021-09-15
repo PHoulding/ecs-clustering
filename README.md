@@ -1,4 +1,4 @@
-![Lines of code](https://img.shields.io/tokei/lines/github/PHoulding/ecs-clustering)
+![Lines of code](https://img.shields.io/tokei/lines/github/PHoulding/ecs-clustering?style=plastic)
 ![NS-3 version](https://img.shields.io/badge/NS--3-3.34-blueviolet?style=plastic)
 
 # ecs-clustering
