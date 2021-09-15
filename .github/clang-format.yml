@@ -1,0 +1,13 @@
+# Run clang-format
+name: Clang-format
+
+on: [push, pull_request]
+
+jobs:
+  checkout-and-check-formatting:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run clang-format
+      uses: HorstBaerbel/action-clang-format@1.4
