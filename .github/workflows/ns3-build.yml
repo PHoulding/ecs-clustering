@@ -10,7 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: ns3 build
-      uses: marshallasch/ns3-action@V34.1
+      uses: marshallasch/ns3-action@34.1
       with:
         location: 'contrib'
         pre_run: 'pre.sh'
