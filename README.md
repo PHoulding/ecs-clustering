@@ -1,3 +1,6 @@
+![Lines of code](https://img.shields.io/tokei/lines/github/PHoulding/ecs-clustering)
+
+
 # ecs-clustering
 Welcome to my implementation of the Efficient Clustering Scheme for NS-3.
 
