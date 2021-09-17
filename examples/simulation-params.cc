@@ -25,7 +25,6 @@
 #include "ns3/random-walk-2d-mobility-model.h"
 
 #include "simulation-params.h"
-#include "util.h"
 
 namespace ecs {
 
