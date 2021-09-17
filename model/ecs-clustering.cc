@@ -29,13 +29,11 @@ Random thoughts:
 #include "ns3/pointer.h"
 #include "ns3/udp-socket-factory.h"
 
-#include "logging.h"
-#include "nsutil.h"
-#include "util.h"
+//#include "logging.h"
+//#include "nsutil.h"
+//#include "util.h"
 #include "ecs-clustering.h"
-
-//TODO add protobuf
-//#include "proto/messages.pb.h"
+#include "proto/messages.pb.h"
 
 namespace ecs {
 
