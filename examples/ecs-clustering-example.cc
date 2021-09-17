@@ -31,7 +31,7 @@
 #include "ns3/core-module.h"
 #include "ns3/ecs-clustering-helper.h"
 #include "simulation-params.h"
-#include "ecs-clustering.h"
+//#include "../model/ecs-clustering.h"
 
 using namespace ns3;
 using namespace ecs;
@@ -133,7 +133,7 @@ main (int argc, char *argv[])
 
   ecsClusterAppHelper ecs;
   ecs.SetAttribute("NeighborhoodSize", UintegerValue(params.optNeighborhoodSize));
-  ecs.SetAttribute("NodeStatus", EnumValue(Node_Status::UNSPECIFIED));
+  ecs.SetAttribute("NodeStatus", EnumValue(ecs::Node_Status::UNSPECIFIED));
 
   ApplicationContainer ecsApps = ecs.Install(allAdHocNodes);
   if(params.staggeredStart) {
