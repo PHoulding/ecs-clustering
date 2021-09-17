@@ -38,7 +38,11 @@ Random thoughts:
 //#include "proto/messages.pb.h"
 
 namespace ecs {
+
 using namespace ns3;
+
+static Ptr<Packet> GeneratePacket(const ecs::packets::Message message);
+static ecs::packets::Message ParsePacket(const Ptr<Packet> packet);
 
 NS_OBJECT_ENSURE_REGISTERED(ecsClusterApp);
 
@@ -121,6 +125,14 @@ void ecsClusterApp::StopApplication() {
   m_state = State::STOPPED;
   //TODO: Cancel events
 }
+
+ecsClusterApp::Node_Status ecsClusterApp::GetStatus() const { return m_node_status; }
+ecsClusterApp::Role ecsClusterApp::GetState() const { return m_state; }
+
+void ecsClusterApp::SetStatus(ecsClusterApp::NodeStatus status) {
+  m_node_status = status;
+}
+
 // this will get the nodes IPv4 address and return it as a 32 bit integer
 uint32_t ecsClusterApp::GetID() {
   Ptr<Ipv4> ipv4 = GetNode()->GetObject<Ipv4>();
@@ -289,7 +301,7 @@ Event schedulers
 **/
 void ecsClusterApp::SchedulePing() {
   if(m_state != State::RUNNNING) return;
-  SendPing(m_node_status);
+  SendPing(GetStatus());
 
   m_ping_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::SchedulePing, this);
 }
@@ -298,7 +310,8 @@ void ecsClusterApp::ScheduleClusterHeadClaim() {
   if(m_state != State::RUNNING) return;
 
   SendClusterHeadClaim();
-  m_node_status = CLUSTER_HEAD;
+  SetStatus(CLUSTER_HEAD);
+  //m_node_status = CLUSTER_HEAD;
 
   m_CH_claim = Simulator::Schedule(m_profileDelay, &ecsClusterApp::ScheduleClusterHeadClaim, this);
 }
@@ -377,13 +390,15 @@ Message handlers below. Above is sorting the messages from one another
 //Handles pings being received from another node (probably will be used to update information table)
 void ecsClusterApp::HandlePing(uint32_t nodeID, uint8_t node_status) {
   m_informationTable[nodeID] = node_status;
-  if(node_status && m_node_status==CLUSTER_HEAD) {
+  if(node_status && GetStatus()==CLUSTER_HEAD) {
     SendCHMeeting(nodeID);
-  } else if(node_status && m_node_status==CLUSTER_MEMBER) {
-    m_node_status = CLUSTER_GATEWAY;
+  } else if(node_status && GetStatus()==CLUSTER_MEMBER) {
+    //m_node_status = CLUSTER_GATEWAY;
+    SetStatus(CLUSTER_GATEWAY);
     SendStatus(nodeID, generateNodeStatusToUint());
-  } else if(node_status && m_node_status==CLUSTER_GUEST) {
-    m_node_status = CLUSTER_MEMBER;
+  } else if(node_status && GetStatus()==CLUSTER_GUEST) {
+    SetStatus(CLUSTER_MEMBER);
+    //m_node_status = CLUSTER_MEMBER;
     SendStatus(nodeID, generateNodeStatusToUint());
   }
 }
@@ -391,13 +406,15 @@ void ecsClusterApp::HandlePing(uint32_t nodeID, uint8_t node_status) {
 void ecsClusterApp::HandleClaim(uint32_t nodeID) {
   //if in standoff, automatically join their cluster
   if(Simulator::Now() < m_standoff_time) {
-    switch (m_node_status) {
+    switch (GetStatus()) {
       case UNSPECIFIED:
-        m_node_status = CLUSTER_MEMBER;
+        SetStatus(CLUSTER_MEMBER);
+        //m_node_status = CLUSTER_MEMBER;
         SendStatus(nodeID, generateNodeStatusToUint());
         break;
       case CLUSTER_MEMBER:
-        m_node_status = CLUSTER_GATEWAY;
+        //m_node_status = CLUSTER_GATEWAY;
+        SetStatus(CLUSTER_GATEWAY);
         SendStatus(nodeID, generateNodeStatusToUint());
         break;
       default:
@@ -407,18 +424,21 @@ void ecsClusterApp::HandleClaim(uint32_t nodeID) {
     //should theoretically be no way a cluster head receives this message??
     //Also no real need to adjust a cluster gateway if it already exists as one
     //    - maybe just send back status as a default
-    switch (m_node_status) {
+    switch (GetStatus()) {
       case CLUSTER_MEMBER:
-        m_node_status = CLUSTER_GATEWAY;
+        //m_node_status = CLUSTER_GATEWAY;
+        SetStatus(CLUSTER_GATEWAY);
         SendPing(generateNodeStatusToUint());
         break;
       case STANDALONE:
-        m_node_status = CLUSTER_MEMBER;
+        //m_node_status = CLUSTER_MEMBER;
+        SetStatus(CLUSTER_MEMBER);
         m_informationTable[nodeID] = node_status;
         SendPing(generateNodeStatusToUint());
         break;
       case CLUSTER_GUEST:
-        m_node_status = CLUSTER_MEMBER;
+        //m_node_status = CLUSTER_MEMBER;
+        SetStatus(CLUSTER_MEMBER);
         SendPing(nodeID);
         break;
       default:
@@ -432,7 +452,7 @@ void ecsClusterApp::HandleResponse(uint32_t nodeID, uint8_t node_status) {
 }
 //Handles ClusterHeadMeeting messaage received
 void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size) {
-  if(m_node_status!=CLUSTER_HEAD) {
+  if(GetStatus()!=CLUSTER_HEAD) {
     NS_LOG_ERROR("ClusterHead meeting sent to node which isnt a cluster head")
     return;
   }
@@ -443,7 +463,8 @@ void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t
     //Send CHResign
     SendResign(nodeID);
     //Change my ns to member
-    m_node_status = CLUSTER_MEMBER;
+    SetStatus(CLUSTER_MEMBER);
+    //m_node_status = CLUSTER_MEMBER;
     //Send Status to original node
     SendPing(nodeID);
   } else if(neighborhood_size < m_informationTable.size()) {
@@ -476,7 +497,7 @@ void ecsClusterApp::HandleStatus(uint32_t nodeID, uint8_t node_status) {
 
 //Simple function which translates the Node_Status enum to an integer for easier communication
 uint8_t ecsClusterApp::generateNodeStatusToUint() {
-  switch (m_node_status) {
+  switch (GetStatus()) {
     case UNSPECIFIED:
       return 0;
     case CLUSTER_HEAD:
