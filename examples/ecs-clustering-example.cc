@@ -30,6 +30,8 @@
 
 #include "ns3/core-module.h"
 #include "ns3/ecs-clustering-helper.h"
+#include "simulation-params.h"
+#include "ecs-clustering.h"
 
 using namespace ns3;
 using namespace ecs;
@@ -43,7 +45,7 @@ void setupTravellerNodes(const SimulationParameters& params, NodeContainer& node
 
   MobilityHelper travellerMobilityHelper;
   travellerMobilityHelper.SetPositionAllocator(params.area.getRandomRectanglePositionAllocator());
-  travellerMobilityHelper.SetMobilityMode(
+  travellerMobilityHelper.SetMobilityModel(
     "ns3::RandomWalk2dMobilityModel",
     "Bounds",
     RectangleValue(params.area.asRectangle()),
@@ -72,7 +74,7 @@ main (int argc, char *argv[])
   std::tie(params, ok) = SimulationParameters::parse(argc,argv);
 
   if(!ok) {
-    std:cerr << "Error parsing the parameters. \n";
+    std::cerr << "Error parsing the parameters. \n";
     return -1;
   }
 
@@ -84,11 +86,11 @@ main (int argc, char *argv[])
   setupTravellerNodes(params, allAdHocNodes);
 
   NS_LOG_UNCOND("Setting up wireless devices for all nodes...");
-  YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default();
+  YansWifiPhyHelper wifiPhy = YansWifiPhyHelper();
   wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
 
-  auto wifiChannel = YansWifiChannelHelper::Default();
-  wifiChannel.SetPropagationiDelay("ns3::ConstantSpeedPropagationDelayModel");
+  auto wifiChannel = YansWifiChannelHelper();
+  wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
 
 
   /*This part needs to be looked into by me. Unsure what connectivity range in my specific paper - will check later*/
@@ -109,7 +111,7 @@ main (int argc, char *argv[])
   WifiHelper wifi;
   wifi.SetStandard(WIFI_STANDARD_80211b);
 
-  NS_LOG_UNCOND('Assigning MAC addresses in ad hoc mode...');
+  NS_LOG_UNCOND("Assigning MAC addresses in ad hoc mode...");
   auto adhocDevices = wifi.Install(wifiPhy, wifiMac, allAdHocNodes);
 
   NS_LOG_UNCOND("Setting up Internet stacks...");
