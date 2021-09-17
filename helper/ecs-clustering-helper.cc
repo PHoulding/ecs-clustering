@@ -40,13 +40,13 @@ namespace ecs {
 
 using namespace ns3;
 
-void ecsClusterAppHelper::SetAttribute(std::string name, const AttributeVal& value) {
-  m_factory.Set(name,value);
+void ecsClusterAppHelper::SetAttribute(std::string name, const AttributeValue& value) {
+  m_factory.Set(name, value);
 }
 
 ApplicationContainer ecsClusterAppHelper::Install(NodeContainer nodes) {
   ApplicationContainer apps;
-  for(size_t i=0; i<nodes.GetN(), i++) {
+  for(size_t i=0; i<nodes.GetN(); i++) {
     apps.Add(createAndInstallApp(nodes.Get(i)));
   }
   return apps;

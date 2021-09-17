@@ -47,8 +47,8 @@ using namespace ns3;
 
 class ecsClusterAppHelper {
   public:
-    ecsClusterAppHelper() {m_factory.SetTypeID(ecsClusterApp::GetTypeId()); };
-    void SetAttribute(std::string name, const AttributeVal& value);
+    ecsClusterAppHelper() {m_factory.SetTypeId(ecsClusterApp::GetTypeId()); };
+    void SetAttribute(std::string name, const AttributeValue& value);
     void SetDataOwners(int32_t num); //possible remove this???
 
     /// \brief Configures an ECS application and installs it on each node.

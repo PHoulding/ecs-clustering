@@ -49,14 +49,17 @@ class ecsClusterApp : public Application {
     void StartApplication() override;
     void StopApplication() override;
 
-    void SetStatus(NodeStatus status);
+    void SetStatus(Node_Status status);
 
     State m_state;
+    Node_Status m_node_status;
+    uint32_t m_neighborhoodHops;
+
     Ptr<Socket> m_socket_recv;
     Ptr<Socket> m_neighborhood_socket;
     Ptr<Socket> m_election_socket;
 
-    Node_Status m_node_status
+
     std::map<uint32_t, uint8_t> m_informationTable;
 
     //helpers
