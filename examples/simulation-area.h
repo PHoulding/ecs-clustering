@@ -55,6 +55,12 @@ class SimulationArea {
   ns3::Rectangle asRectangle() const;
   std::string toString() const;
 
+  /// \brief Get a Random Box Position Allocation which is compatible with
+  ///     random walk mobility models.
+  ///
+  /// \return ns3::Ptr<ns3::RandomRectanglePositionAllocator>
+  ns3::Ptr<ns3::RandomRectanglePositionAllocator> getRandomRectanglePositionAllocator() const;
+
   friend std::ostream& operator<<(std::ostream& os, const SimulationArea& area) {
     return os << area.toString();
   }

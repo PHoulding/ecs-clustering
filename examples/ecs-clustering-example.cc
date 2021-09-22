@@ -50,13 +50,13 @@ void setupTravellerNodes(const SimulationParameters& params, NodeContainer& node
     "Bounds",
     RectangleValue(params.area.asRectangle()),
     "Speed",
-    PointerValue(params.travellerVelocity),
+    PointerValue(params.nodeVelocity),
     "Distance",
-    DoubleValue(params.travellerDirectionChangeDistance),
+    DoubleValue(params.nodeDirectionChangeDistance),
     "Time",
-    TimeValue(params.travellerDirectionChangeDistance),
+    TimeValue(params.nodeDirectionChangePeriod),
     "Mode",
-    EnumValue(params.travellerWalkMode));
+    EnumValue(params.nodeWalkMode));
 
   travellerMobilityHelper.Install(travellers);
   nodes.Add(travellers);
@@ -132,7 +132,7 @@ main (int argc, char *argv[])
   adhocAddresses.Assign(adhocDevices);
 
   ecsClusterAppHelper ecs;
-  ecs.SetAttribute("NeighborhoodSize", UintegerValue(params.optNeighborhoodSize));
+  ecs.SetAttribute("NeighborhoodSize", UintegerValue(params.neighborhoodSize));
   ecs.SetAttribute("NodeStatus", EnumValue(ecs::Node_Status::UNSPECIFIED));
 
   ApplicationContainer ecsApps = ecs.Install(allAdHocNodes);

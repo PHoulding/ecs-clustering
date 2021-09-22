@@ -27,7 +27,7 @@ using namespace ns3;
 class ecsClusterApp : public Application {
   public:
     //unspec = 0, ch = 1, cm = 2, cgw = 3, sa = 4, cg = 5
-    enum Node_Status { UNSPECIFIED, CLUSTER_HEAD,
+    enum class Node_Status { UNSPECIFIED, CLUSTER_HEAD,
                       CLUSTER_MEMBER, CLUSTER_GATEWAY,
                       STANDALONE, CLUSTER_GUEST };
     enum class State { NOT_STARTED = 0, RUNNING, STOPPED };

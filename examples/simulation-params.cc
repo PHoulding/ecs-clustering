@@ -194,7 +194,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   result.totalNodes = optTotalNodes;
   result.nodeVelocity = travellerVelocityGenerator;
   result.nodeDirectionChangePeriod = Seconds(optTravellerWalkTime);
-  result.nodeTravellerDirectionChanceDistance = optTravellerWalkDistance;
+  result.nodeDirectionChanceDistance = optTravellerWalkDistance;
   result.nodeWalkMode = travellerWalkMode;
   //result.dataOwners = std::round(optTotalNodes * (optPercentageDataOwners / 100.0));
 

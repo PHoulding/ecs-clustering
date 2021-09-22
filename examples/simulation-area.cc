@@ -33,6 +33,22 @@ ns3::Rectangle SimulationArea::asRectangle() const {
   return ns3::Rectangle(this->minX(), this->maxX(), this->minY(), this->maxY());
 }
 
+ns3::Ptr<ns3::RandomRectanglePositionAllocator> SimulationArea::
+    getRandomRectanglePositionAllocator() const {
+  ns3::Ptr<ns3::UniformRandomVariable> x = ns3::CreateObject<ns3::UniformRandomVariable>();
+  x->SetAttribute("Min", ns3::DoubleValue(this->minX()));
+  x->SetAttribute("Max", ns3::DoubleValue(this->maxX()));
+
+  ns3::Ptr<ns3::UniformRandomVariable> y = ns3::CreateObject<ns3::UniformRandomVariable>();
+  y->SetAttribute("Min", ns3::DoubleValue(this->minY()));
+  y->SetAttribute("Max", ns3::DoubleValue(this->maxY()));
+
+  auto alloc = ns3::CreateObject<ns3::RandomRectanglePositionAllocator>();
+  alloc->SetX(x);
+  alloc->SetY(y);
+  return alloc;
+}
+
 std::string SimulationArea::toString() const {
   std::stringstream ss;
   ss << "{(" << m_min.first << "," << m_min.second << "),(" << m_max.first << "," << m_max.second
