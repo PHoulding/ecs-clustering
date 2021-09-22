@@ -28,6 +28,7 @@
 
 #include "nsutil.h"
 #include "simulation-area.h"
+#include "util.h"
 
 namespace ecs {
 

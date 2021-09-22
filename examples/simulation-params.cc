@@ -40,6 +40,8 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
 
   // Node parameters.
   uint32_t optTotalNodes = 160;
+  uint32_t optNodesPerPartition = 8;
+  uint32_t optNeighborhoodSize = 1;
 
   // Simulation area parameters.
   double optAreaWidth = 1000.0_meters;
@@ -64,6 +66,8 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   bool optStaggeredStart = false;
   double optStaggeredVariance = 4.0;
 
+  double optRequestTimeout = 0.0_seconds; //sets to 0 to ignore timeouts
+
   // Animation parameters.
   std::string animationTraceFilePath = "ecs.xml";
   /* Setup commandline option for each simulation parameter. */
@@ -78,15 +82,14 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
       "staggeredStartVariance",
       "The variance used to generate the application startup variance",
       optStaggeredVariance);
-  cmd.AddValue("partitionNodes", "The number of nodes placed per partition", optNodesPerPartition);
   cmd.AddValue(
-    "hops",
-    "The number of hops to consider in the neighborhood of a node",
-    optNeighborhoodSize);
+      "waitTime",
+      "number of seconds to wait before starting the data access application",
+      optWaitTime);
   cmd.AddValue(
-      "forwardingThreshold",
-      "The delivery probability threshold for a node to forward data",
-      optForwardingThreshold);
+      "hops",
+      "The number of hops to consider in the neighborhood of a node",
+      optNeighborhoodSize);
   cmd.AddValue("areaWidth", "Width of the simulation area in meters", optAreaWidth);
   cmd.AddValue("areaLength", "Length of the simulation area in meters", optAreaLength);
   cmd.AddValue("travellerVelocity", "Velocity of traveller nodes in m/s", optTravellerVelocity);
@@ -105,10 +108,6 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
       "Should a traveller change direction after distance walked or time "
       "passed; options are 'distance' or 'time' ",
       optTravellerWalkMode);
-  cmd.AddValue(
-      "electionPeriod",
-      "The number of seconds to wait before checking the results of an election",
-      optElectionPeriod);
   cmd.AddValue(
       "requestTimeout",
       "The number of seconds to wait before marking a lookup as failed",
@@ -137,10 +136,10 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
               << std::endl;
     return std::pair<SimulationParameters, bool>(result, false);
   }
-  if (optForwardingThreshold < 0 || optForwardingThreshold > 1) {
-    std::cerr << "Forwarding Threshold (" << optForwardingThreshold << ") is not a probability" << std::endl;
-    return std::pair<SimulationParameters, bool>(result, false);
-  }
+  // if (optForwardingThreshold < 0 || optForwardingThreshold > 1) {
+  //   std::cerr << "Forwarding Threshold (" << optForwardingThreshold << ") is not a probability" << std::endl;
+  //   return std::pair<SimulationParameters, bool>(result, false);
+  // }
   if (optAreaWidth < 0) {
       std::cerr << "Area width (" << optAreaWidth << ") is negative"
                 << std::endl;
@@ -189,17 +188,25 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   result.area = SimulationArea(
       std::pair<double, double>(0.0, 0.0),
       std::pair<double, double>(optAreaWidth, optAreaLength));
-  result.rows = optRows;''
-  result.cols = optCols;
+  //result.rows = optRows;
+  //result.cols = optCols;
 
   result.totalNodes = optTotalNodes;
-  result.dataOwners = std::round(optTotalNodes * (optPercentageDataOwners / 100.0));
+  result.nodeVelocity = travellerVelocityGenerator;
+  result.nodeDirectionChangePeriod = Seconds(optTravellerWalkTime);
+  result.nodeTravellerDirectionChanceDistance = optTravellerWalkDistance;
+  result.nodeWalkMode = travellerWalkMode;
+  //result.dataOwners = std::round(optTotalNodes * (optPercentageDataOwners / 100.0));
 
-  result.travellerNodes = optTotalNodes - (optNodesPerPartition * (optRows * optCols));
-  result.travellerVelocity = travellerVelocityGenerator;
-  result.travellerDirectionChangePeriod = Seconds(optTravellerWalkTime);
-  result.travellerDirectionChangeDistance = optTravellerWalkDistance;
-  result.travellerWalkMode = travellerWalkMode;
+  //result.travellerNodes = optTotalNodes - (optNodesPerPartition * (optRows * optCols));
+  //result.travellerVelocity = travellerVelocityGenerator;
+  //result.travellerDirectionChangePeriod = Seconds(optTravellerWalkTime);
+  //result.travellerDirectionChangeDistance = optTravellerWalkDistance;
+  //result.travellerWalkMode = travellerWalkMode;
+
+  result.neighborhoodSize = optNeighborhoodSize;
+  result.requestTiemout = Seconds(optRequestTimeout);
+  result.waitTime = Seconds(optWaitTime);
 
   result.pbnVelocity = pbnVelocityGenerator;
   result.pbnVelocityChangePeriod = Seconds(optPbnVelocityChangeAfter);

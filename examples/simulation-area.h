@@ -62,5 +62,7 @@ class SimulationArea {
   private:
     std::pair<double, double> m_min;
     std::pair<double, double> m_max;
+};
 }
-}
+
+#endif
