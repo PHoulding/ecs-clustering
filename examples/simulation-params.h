@@ -27,6 +27,7 @@
 #include "ns3/random-walk-2d-mobility-model.h"
 
 #include "nsutil.h"
+#include "simulation-area.h"
 
 namespace ecs {
 
@@ -69,7 +70,7 @@ class SimulationParameters {
     /// The period after which partition-bound nodes change velocity.
     ns3::Time pbnVelocityChangePeriod;
     /// Indicates the type of routing to use for the simulation.
-    rhpman::RoutingType routingProtocol;
+    ecs::RoutingType routingProtocol;
     /// The radius of connectivity for each node.
     double wifiRadius;
     /// The path on disk to output the NetAnim trace XML file for visualizing the
