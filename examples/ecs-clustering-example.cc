@@ -31,7 +31,7 @@
 #include "ns3/core-module.h"
 #include "ns3/ecs-clustering-helper.h"
 #include "simulation-params.h"
-//#include "../model/ecs-clustering.h"
+#include "../model/ecs-clustering.h"
 
 using namespace ns3;
 using namespace ecs;
@@ -50,13 +50,13 @@ void setupTravellerNodes(const SimulationParameters& params, NodeContainer& node
     "Bounds",
     RectangleValue(params.area.asRectangle()),
     "Speed",
-    PointerValue(params.nodeVelocity),
+    PointerValue(params.travellerVelocity),
     "Distance",
-    DoubleValue(params.nodeDirectionChangeDistance),
+    DoubleValue(params.travellerDirectionChangeDistance),
     "Time",
-    TimeValue(params.nodeDirectionChangePeriod),
+    TimeValue(params.travellerDirectionChangePeriod),
     "Mode",
-    EnumValue(params.nodeWalkMode));
+    EnumValue(params.travellerWalkMode));
 
   travellerMobilityHelper.Install(travellers);
   nodes.Add(travellers);

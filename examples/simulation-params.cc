@@ -178,9 +178,9 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   Ptr<ConstantRandomVariable> travellerVelocityGenerator = CreateObject<ConstantRandomVariable>();
   travellerVelocityGenerator->SetAttribute("Constant", DoubleValue(optTravellerVelocity));
 
-  Ptr<UniformRandomVariable> pbnVelocityGenerator = CreateObject<UniformRandomVariable>();
-  pbnVelocityGenerator->SetAttribute("Min", DoubleValue(optPbnVelocityMin));
-  pbnVelocityGenerator->SetAttribute("Max", DoubleValue(optPbnVelocityMax));
+  //Ptr<UniformRandomVariable> pbnVelocityGenerator = CreateObject<UniformRandomVariable>();
+  //pbnVelocityGenerator->SetAttribute("Min", DoubleValue(optPbnVelocityMin));
+  //pbnVelocityGenerator->SetAttribute("Max", DoubleValue(optPbnVelocityMax));
 
 
   result.seed = optSeed;
@@ -192,7 +192,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   //result.cols = optCols;
 
   result.totalNodes = optTotalNodes;
-  result.nodeVelocity = travellerVelocityGenerator;
+  //result.nodeVelocity = travellerVelocityGenerator;
   result.nodeDirectionChangePeriod = Seconds(optTravellerWalkTime);
   result.nodeDirectionChanceDistance = optTravellerWalkDistance;
   result.nodeWalkMode = travellerWalkMode;
@@ -208,8 +208,8 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   result.requestTiemout = Seconds(optRequestTimeout);
   result.waitTime = Seconds(optWaitTime);
 
-  result.pbnVelocity = pbnVelocityGenerator;
-  result.pbnVelocityChangePeriod = Seconds(optPbnVelocityChangeAfter);
+  //result.pbnVelocity = pbnVelocityGenerator;
+  //result.pbnVelocityChangePeriod = Seconds(optPbnVelocityChangeAfter);
 
   result.routingProtocol = routingType;
   result.wifiRadius = optWifiRadius;
