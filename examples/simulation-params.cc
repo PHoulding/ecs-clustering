@@ -40,7 +40,6 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
 
   // Node parameters.
   uint32_t optTotalNodes = 160;
-  uint32_t optNodesPerPartition = 8;
   uint32_t optNeighborhoodSize = 1;
 
   // Simulation area parameters.
@@ -193,9 +192,9 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
 
   result.totalNodes = optTotalNodes;
   //result.nodeVelocity = travellerVelocityGenerator;
-  result.nodeDirectionChangePeriod = Seconds(optTravellerWalkTime);
-  result.nodeDirectionChanceDistance = optTravellerWalkDistance;
-  result.nodeWalkMode = travellerWalkMode;
+  result.travellerDirectionChangePeriod = Seconds(optTravellerWalkTime);
+  result.travellerDirectionChanceDistance = optTravellerWalkDistance;
+  result.travellerWalkMode = travellerWalkMode;
   //result.dataOwners = std::round(optTotalNodes * (optPercentageDataOwners / 100.0));
 
   //result.travellerNodes = optTotalNodes - (optNodesPerPartition * (optRows * optCols));
@@ -205,7 +204,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   //result.travellerWalkMode = travellerWalkMode;
 
   result.neighborhoodSize = optNeighborhoodSize;
-  result.requestTiemout = Seconds(optRequestTimeout);
+  result.requestTimeout = Seconds(optRequestTimeout);
   result.waitTime = Seconds(optWaitTime);
 
   //result.pbnVelocity = pbnVelocityGenerator;
