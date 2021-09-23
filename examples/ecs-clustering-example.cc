@@ -31,7 +31,7 @@
 #include "ns3/core-module.h"
 #include "ns3/ecs-clustering-helper.h"
 #include "simulation-params.h"
-#include "../model/ecs-clustering.h"
+#include "ns3/ecs-clustering.h"
 
 using namespace ns3;
 using namespace ecs;
@@ -151,7 +151,7 @@ main (int argc, char *argv[])
   Simulator::Destroy ();
   NS_LOG_UNCOND("Done.");
 
-  //ecsClusterApp::CleanUp();  (uncomment when using protobuf)
+  ecsClusterApp::CleanUp();
 
   return 0;
 }
