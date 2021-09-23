@@ -58,6 +58,8 @@ class SimulationParameters {
     ns3::Time lookupTime;
     ns3::Time waitTime;
 
+    ns3::Time requestTimeout;
+
     bool staggeredStart;
     double staggeredVariance;
 
