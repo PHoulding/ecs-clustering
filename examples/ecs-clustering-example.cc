@@ -133,7 +133,7 @@ main (int argc, char *argv[])
 
   ecsClusterAppHelper ecs;
   ecs.SetAttribute("NeighborhoodSize", UintegerValue(params.neighborhoodSize));
-  ecs.SetAttribute("NodeStatus", EnumValue(ecs::Node_Status::UNSPECIFIED));
+  ecs.SetAttribute("NodeStatus", EnumValue(Node_Status::UNSPECIFIED));
 
   ApplicationContainer ecsApps = ecs.Install(allAdHocNodes);
   if(params.staggeredStart) {
@@ -151,7 +151,7 @@ main (int argc, char *argv[])
   Simulator::Destroy ();
   NS_LOG_UNCOND("Done.");
 
-  ecsClusterApp::CleanUp();
+  //ecsClusterApp::CleanUp();
 
   return 0;
 }
