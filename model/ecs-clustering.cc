@@ -54,18 +54,18 @@ TypeID ecsClusterApp::GetTypeId() {
       "Number of hops considered to be in the neightborhood of this node (h)",
       UintegerValue(1),
       MakeUintegerAccessor(&ecsClusterApp::m_neighborhoodHops),
-      MakeUintegerChecker<uint32_t>(1))
-    .AddAttribute(
-      "NodeStatus",
-      "The status of the node based on it's role in the network/cluster (n_s)",
-      EnumValue(&ecsClusterApp::Node_Status),
-      MakeEnumChecker<Node_Status>(
-        Node_Status::UNSPECIFIED, "Node_Status::UNSPECIFIED",
-        Node_Status::CLUSTER_HEAD, "Node_Status::CLUSTER_HEAD",
-        Node_Status::CLUSTER_MEMBER, "Node_Status::CLUSTER_MEMBER",
-        Node_Status::CLUSTER_GATEWAY, "Node_Status::CLUSTER_GATEWAY",
-        Node_Status::STANDALONE, "Node_Status::STANDALONE",
-        Node_Status::CLUSTER_GUEST, "Node_Status::CLUSTER_GUEST"));
+      MakeUintegerChecker<uint32_t>(1));
+    // .AddAttribute(
+    //   "NodeStatus",
+    //   "The status of the node based on it's role in the network/cluster (n_s)",
+    //   EnumValue(&ecsClusterApp::Node_Status),
+    //   MakeEnumChecker<Node_Status>(
+    //     Node_Status::UNSPECIFIED, "Node_Status::UNSPECIFIED",
+    //     Node_Status::CLUSTER_HEAD, "Node_Status::CLUSTER_HEAD",
+    //     Node_Status::CLUSTER_MEMBER, "Node_Status::CLUSTER_MEMBER",
+    //     Node_Status::CLUSTER_GATEWAY, "Node_Status::CLUSTER_GATEWAY",
+    //     Node_Status::STANDALONE, "Node_Status::STANDALONE",
+    //     Node_Status::CLUSTER_GUEST, "Node_Status::CLUSTER_GUEST"));
   return id;
 }
 
@@ -91,6 +91,7 @@ void ecsClusterApp::StartApplication() {
   m_address = GetID();
   m_peerTable = Table(m_profileDelay.GetSeconds(), m_neighborhoodHops);
   m_state = State::RUNNING;
+  m_node_status = Node_Status::UNSPECIFIED;
 
 
   //Scheduling of events. Maybe this is where i put the algorithm??
