@@ -134,7 +134,7 @@ main (int argc, char *argv[])
   ecsClusterAppHelper ecs;
   ecs.SetAttribute("NeighborhoodSize", UintegerValue(params.neighborhoodSize));
   //ecs.SetAttribute("NodeStatus", EnumValue(ecsClusterApp::Node_Status::UNSPECIFIED));
-  ecs.SetAttribute("NodeStatus", Node_Status::UNSPECIFIED);
+  ecs.SetAttribute("NodeStatus", EnumValue(ecs::Node_Status::UNSPECIFIED));
 
   ApplicationContainer ecsApps = ecs.Install(allAdHocNodes);
   if(params.staggeredStart) {
