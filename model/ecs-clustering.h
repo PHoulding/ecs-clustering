@@ -20,6 +20,8 @@
 #include "ns3/socket.h"
 #include "ns3/uinteger.h"
 
+#include "table.h"
+
 namespace ecs {
 
 using namespace ns3;
@@ -54,13 +56,12 @@ class ecsClusterApp : public Application {
     State m_state;
     Node_Status m_node_status;
     uint32_t m_neighborhoodHops;
+    Time m_profileDelay;
+    Time m_standoff_time;
 
     Ptr<Socket> m_socket_recv;
     Ptr<Socket> m_neighborhood_socket;
     Ptr<Socket> m_election_socket;
-
-
-    std::map<uint32_t, uint8_t> m_informationTable;
 
     //helpers
     uint32_t GetID();
@@ -76,12 +77,20 @@ class ecsClusterApp : public Application {
     Ptr<Packet> GenerateMeeting();
     Ptr<Packet> GenerateResponse(uint64_t responseTo);
 
+    // EventId m_election_watchdog_event;
+    // EventId m_replica_announcement_event;
+    EventId m_ping_event;
+    // EventId m_election_results_event;
+    EventId m_table_update_event;
+    EventId m_CH_claim;
+
+
     void BroadcastToNeighbors(Ptr<Packet> packet);
     void SendMessage(Ipv4Address dest, Ptr<Packet> packet);
     void SendPing(uint8_t node_status);
     void SendResponse(uint64_t requestID, uint32_t nodeID);
     void SendClusterHeadClaim();
-    void SendStatus(uint32_t nodeID);
+    void SendStatus(uint32_t nodeID, uint8_t statusInt);
     void SendCHMeeting(uint32_t nodeID);
 
     void SchedulePing();
@@ -97,10 +106,22 @@ class ecsClusterApp : public Application {
     void HandleInquiry(uint32_t nodeID, uint8_t node_status);
     void HandleStatus(uint32_t nodeId, uint8_t node_status);
 
+    bool CheckDuplicateMessage(uint64_t messageID);
+
     uint8_t generateNodeStatusToUint();
 
     void ScheduleClusterFormationWatchdog();
     void ClusterFormation();
+
+
+    uint32_t m_address;
+    std::map<uint32_t, uint8_t> m_informationTable;
+
+    std::set<uint64_t> m_received_messages;
+
+    Table m_peerTable;
+
+    // Stats stats;
 
 };
 }; //namespace ecs
