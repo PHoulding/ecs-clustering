@@ -12,6 +12,7 @@ def build(bld):
         'model/ecs-clustering.cc',
         'model/nsutil.cc',
         'model/table.cc',
+        'model/logging.cc',
         'helper/ecs-clustering-helper.cc',
         'model/proto/messages.proto'
         ]

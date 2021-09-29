@@ -58,7 +58,7 @@ TypeId ecsClusterApp::GetTypeId() {
     .AddAttribute(
       "StandoffTime",
       "Maximum amount of time for nodes to claim cluster head. They can activate beforehand (so_t)",
-      TimeValue(2.0_minutes),
+      TimeValue(2.0_min),
       MakeTimeAccessor(&ecsClusterApp::m_standoff_time),
       MakeTimeChecker(0.1_sec));
   return id;
