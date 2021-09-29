@@ -221,9 +221,19 @@ Ptr<Packet> ecsClusterApp::GenerateMeeting() {
   message.set_timestamp(Simulator::Now().GetMilliSeconds());
 
   ecs::packets::Meeting * meeting = message.mutable_meeting();
-  meeting->set_tablesizee(m_informationTable.size());
+  meeting->set_tablesize(m_informationTable.size());
 
   return GeneratePacket(message);
+}
+Ptr<Packet> ecsClusterApp::GenerateResign() {
+  ecs::packets::Message message;
+  message.set_id(GenerateMessageID());
+  message.set_timestamp(Simulator::Now().GetMilliSeconds());
+
+  message.mutable_resign();
+
+  return GeneratePacket(message);
+
 }
 // Ptr<Packet> ecsClusterApp::GenerateResponse(uint64_t responseTo) {
 //   ecs::packets::Message message;
@@ -294,12 +304,16 @@ void ecsClusterApp::SendClusterHeadClaim() {
   BroadcastToNeighbors(message);
 }
 void ecsClusterApp::SendStatus(uint32_t nodeID, uint8_t statusInt) {
-  Ptr<Packet> message = GeneratePing(m_node_status);
+  Ptr<Packet> message = GeneratePing(generateNodeStatusToUint());
   SendMessage(Ipv4Address(nodeID), message);
 }
 void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
   Ptr<Packet> message = GenerateMeeting();
   SendMessage(Ipv4Address(nodeID), message);
+}
+void ecsClusterApp::SendResign(uint32_t nodeID) {
+  Ptr<Packet> message = GenerateResign();
+  BroadcastToNeighbors(message);
 }
 
 /**
@@ -350,7 +364,7 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
     if(message.has_ping()) {
       //ping received
       //stats.incReceived(Stats::Type::PING);
-      HandlePing(srcAddress, message.ping().delivery_probability(), message.node_status());
+      HandlePing(srcAddress, message.node_status());
     } else if(message.has_claim()) {
       //CH claim received
       //stats.incReceived(Stats::Type::Claim);
@@ -364,15 +378,15 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //clusterhead meeting, handle by sending number of connected nodes
       //(i.e. information table size) to other. if less table size, resign
       //stats.incReceived(Stats::Type::ClusterHeadMeeting);
-      HandleMeeting(srcAddress,message.meeting().node_status(),message.meeting().neighborhood_size());
-    } else if(message.has_clusterHeadResign()) {
+      HandleMeeting(srcAddress,message.node_status(),message.meeting().tablesize());
+    } else if(message.has_cluster_head_resign()) {
       //clusterhead meeting has occured, and the node broadcasting this message
       //has a smaller information table, thus causing it to resign. This message
       //is broadcasted to all neighbors on the information table. A node recieving this
       //message must then ping all neighbors to figure out it's new node status.
       //stats.incReceived(Stats::Type::ClusterHeadResign);
       HandleCHResign(srcAddress);
-    } else if(message.hasNeighborhoodInquiry()) {
+    } else if(message.has_neighborhood_inquiry()) {
       //Happens when a node needs to learn it's neighbors' node types in order
       //to decide it's own
       //stats.incReceived(Stats::Type::NeighborhoodInquiry);
@@ -439,7 +453,7 @@ void ecsClusterApp::HandleClaim(uint32_t nodeID) {
       case Node_Status::STANDALONE:
         //m_node_status = CLUSTER_MEMBER;
         SetStatus(Node_Status::CLUSTER_MEMBER);
-        m_informationTable[nodeID] = node_status;
+        m_informationTable[nodeID] = m_node_status;
         SendPing(generateNodeStatusToUint());
         break;
       case Node_Status::CLUSTER_GUEST:
@@ -459,7 +473,7 @@ void ecsClusterApp::HandleResponse(uint32_t nodeID, uint8_t node_status) {
 //Handles ClusterHeadMeeting messaage received
 void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size) {
   if(GetStatus()!=Node_Status::CLUSTER_HEAD) {
-    NS_LOG_ERROR("ClusterHead meeting sent to node which isnt a cluster head")
+    NS_LOG_ERROR("ClusterHead meeting sent to node which isnt a cluster head");
     return;
   }
   //sending node's degree is greater than this node's, therefore resign
@@ -484,7 +498,7 @@ void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t
 void ecsClusterApp::HandleCHResign(uint32_t nodeID) {
   m_informationTable[nodeID] = m_node_status;
   //Possibly queue new CH formation??
-  if(m_state != CLUSTER_HEAD) {
+  if(m_node_status != Node_Status::CLUSTER_HEAD) {
     //iterate through information table, if any heads, break, otherwise send CH claim
   } else {
     return;
@@ -528,7 +542,7 @@ uint8_t ecsClusterApp::generateNodeStatusToUint() {
 }
 // this will generate the ID value to use for the requests this is a static function that should be
 // called to generate all the ids to ensure they are unique
-uint64_t RhpmanApp::GenerateMessageID() {
+uint64_t ecsClusterApp::GenerateMessageID() {
   static uint64_t id = 0;
   return ++id;
 }

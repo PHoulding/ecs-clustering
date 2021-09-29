@@ -30,3 +30,6 @@ message Meeting {
 
 message ClusterHeadResign {
 }
+
+message Status{
+}

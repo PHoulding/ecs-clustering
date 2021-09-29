@@ -115,7 +115,7 @@ class ecsClusterApp : public Application {
 
 
     uint32_t m_address;
-    std::map<uint32_t, uint8_t> m_informationTable;
+    std::map<uint32_t, Node_Status> m_informationTable;
 
     std::set<uint64_t> m_received_messages;
 
