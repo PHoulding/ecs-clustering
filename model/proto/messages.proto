@@ -12,6 +12,8 @@ message Message {
     Inquiry inquiry = 6;
     Claim claim = 7;
     Meeting meeting = 8;
+    ClusterHeadResign resign = 9;
+    NeighborhoodInquiry inquiry = 10;
   }
 }
 
