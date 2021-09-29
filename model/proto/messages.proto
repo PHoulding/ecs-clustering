@@ -30,7 +30,7 @@ message Meeting {
   uint64 tablesize = 1;
 }
 
-messsage ClusterHeadResign {
+message ClusterHeadResign {
 }
 
 message NeighborhoodInquiry{
