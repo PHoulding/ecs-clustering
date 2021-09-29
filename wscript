@@ -10,6 +10,8 @@ def build(bld):
     module = bld.create_ns3_module('ecs-clustering', ['core', 'stats', 'aodv', 'internet', 'mobility', 'wifi'])
     module.source = [
         'model/ecs-clustering.cc',
+        'model/nsutil.cc',
+        'model/table.cc',
         'helper/ecs-clustering-helper.cc',
         'model/proto/messages.proto'
         ]
@@ -29,7 +31,10 @@ def build(bld):
     headers.module = 'ecs-clustering'
     headers.source = [
         'model/ecs-clustering.h',
-        'helper/ecs-clustering-helper.h',
+        'model/table.h',
+        'model/nsutil.h',
+        'model/util.h',
+        'helper/ecs-clustering-helper.h'
         ]
 
     if bld.env.ENABLE_EXAMPLES:
