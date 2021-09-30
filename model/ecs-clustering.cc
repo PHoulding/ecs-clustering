@@ -103,7 +103,7 @@ void ecsClusterApp::StartApplication() {
 
   //Scheduling of events. Maybe this is where i put the algorithm??
   SchedulePing();
-  ScheduleClusterFormationWatchdog();
+  //ScheduleClusterFormationWatchdog();
 }
 //override
 void ecsClusterApp::StopApplication() {
@@ -294,10 +294,10 @@ void ecsClusterApp::SendPing(uint8_t node_status) {
   BroadcastToNeighbors(message);
 }
 
-void ecsClusterApp::SendResponse(uint64_t requestID, uint32_t nodeID) {
-  Ptr<Packet> message = GenerateResponse(requestID);
-  SendMessage(Ipv4Address(nodeID), message);
-}
+// void ecsClusterApp::SendResponse(uint64_t requestID, uint32_t nodeID) {
+//   Ptr<Packet> message = GenerateResponse(requestID);
+//   SendMessage(Ipv4Address(nodeID), message);
+// }
 
 void ecsClusterApp::SendClusterHeadClaim() {
   Ptr<Packet> message = GenerateClusterHeadClaim();
