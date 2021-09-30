@@ -188,7 +188,7 @@ void ecsClusterApp::DestroySocket(Ptr<Socket> socket) {
 Send message wrappers
 **/
 void ecsClusterApp::SendToNodes(Ptr<Packet> message, const std::set<uint32_t> nodes) {
-  for(std::set<uint32_t>::iterator it = nodes.begin(); it!=nodes.end; ++it) {
+  for(std::set<uint32_t>::iterator it = nodes.begin(); it!=nodes.end(); ++it) {
     SendMessage(Ipv4Address(*it), message);
   }
 }
@@ -304,7 +304,7 @@ void ecsClusterApp::SendClusterHeadClaim() {
   BroadcastToNeighbors(message);
 }
 void ecsClusterApp::SendStatus(uint32_t nodeID, uint8_t statusInt) {
-  Ptr<Packet> message = GeneratePing(generateNodeStatusToUint());
+  Ptr<Packet> message = GeneratePing(GenerateNodeStatusToUint());
   SendMessage(Ipv4Address(nodeID), message);
 }
 void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
@@ -321,7 +321,7 @@ Event schedulers
 **/
 void ecsClusterApp::SchedulePing() {
   if(m_state != State::RUNNING) return;
-  SendPing(generateNodeStatusToUint());
+  SendPing(GenerateNodeStatusToUint());
 
   m_ping_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::SchedulePing, this);
 }
@@ -379,19 +379,19 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //(i.e. information table size) to other. if less table size, resign
       //stats.incReceived(Stats::Type::ClusterHeadMeeting);
       HandleMeeting(srcAddress,message.node_status(),message.meeting().tablesize());
-    } else if(message.has_cluster_head_resign()) {
+    } else if(message.has_ClusterHeadResign()) {
       //clusterhead meeting has occured, and the node broadcasting this message
       //has a smaller information table, thus causing it to resign. This message
       //is broadcasted to all neighbors on the information table. A node recieving this
       //message must then ping all neighbors to figure out it's new node status.
       //stats.incReceived(Stats::Type::ClusterHeadResign);
       HandleCHResign(srcAddress);
-    } else if(message.has_neighborhood_inquiry()) {
+    } else if(message.has_Inquiry()) {
       //Happens when a node needs to learn it's neighbors' node types in order
       //to decide it's own
       //stats.incReceived(Stats::Type::NeighborhoodInquiry);
       HandleInquiry(srcAddress,message.node_status());
-    } else if(message.has_status()) {
+    } else if(message.has_Status()) {
       //Simple message relaying a given node's node_status to another node.
       //Sent when a clusterhead claim is received during cluster formation
     //  stats.incReceived(Stats::Type::StatusRelay);
@@ -409,17 +409,17 @@ Message handlers below. Above is sorting the messages from one another
 
 //Handles pings being received from another node (probably will be used to update information table)
 void ecsClusterApp::HandlePing(uint32_t nodeID, uint8_t node_status) {
-  m_informationTable[nodeID] = node_status;
+  m_informationTable[nodeID] = GenerateStatusFromUint(node_status);
   if(node_status && GetStatus()==Node_Status::CLUSTER_HEAD) {
     SendCHMeeting(nodeID);
   } else if(node_status && GetStatus()==Node_Status::CLUSTER_MEMBER) {
     //m_node_status = CLUSTER_GATEWAY;
     SetStatus(Node_Status::CLUSTER_GATEWAY);
-    SendStatus(nodeID, generateNodeStatusToUint());
+    SendStatus(nodeID, GenerateNodeStatusToUint());
   } else if(node_status && GetStatus()==Node_Status::CLUSTER_GUEST) {
     SetStatus(Node_Status::CLUSTER_MEMBER);
     //m_node_status = CLUSTER_MEMBER;
-    SendStatus(nodeID, generateNodeStatusToUint());
+    SendStatus(nodeID, GenerateNodeStatusToUint());
   }
 }
 //Handles another node sending a clusterhead claim. Follows the algorithm from the paper
@@ -430,15 +430,15 @@ void ecsClusterApp::HandleClaim(uint32_t nodeID) {
       case Node_Status::UNSPECIFIED:
         SetStatus(Node_Status::CLUSTER_MEMBER);
         //m_node_status = CLUSTER_MEMBER;
-        SendStatus(nodeID, generateNodeStatusToUint());
+        SendStatus(nodeID, GenerateNodeStatusToUint());
         break;
       case Node_Status::CLUSTER_MEMBER:
         //m_node_status = CLUSTER_GATEWAY;
         SetStatus(Node_Status::CLUSTER_GATEWAY);
-        SendStatus(nodeID, generateNodeStatusToUint());
+        SendStatus(nodeID, GenerateNodeStatusToUint());
         break;
       default:
-        SendStatus(nodeID, generateNodeStatusToUint());
+        SendStatus(nodeID, GenerateNodeStatusToUint());
     }
   } else {
     //should theoretically be no way a cluster head receives this message??
@@ -448,13 +448,13 @@ void ecsClusterApp::HandleClaim(uint32_t nodeID) {
       case Node_Status::CLUSTER_MEMBER:
         //m_node_status = CLUSTER_GATEWAY;
         SetStatus(Node_Status::CLUSTER_GATEWAY);
-        SendPing(generateNodeStatusToUint());
+        SendPing(GenerateNodeStatusToUint());
         break;
       case Node_Status::STANDALONE:
         //m_node_status = CLUSTER_MEMBER;
         SetStatus(Node_Status::CLUSTER_MEMBER);
         m_informationTable[nodeID] = m_node_status;
-        SendPing(generateNodeStatusToUint());
+        SendPing(GenerateNodeStatusToUint());
         break;
       case Node_Status::CLUSTER_GUEST:
         //m_node_status = CLUSTER_MEMBER;
@@ -462,13 +462,13 @@ void ecsClusterApp::HandleClaim(uint32_t nodeID) {
         SendPing(nodeID);
         break;
       default:
-        SendStatus(nodeID, generateNodeStatusToUint());
+        SendStatus(nodeID, GenerateNodeStatusToUint());
     }
   }
 }
 //Handles response from a given node. I dont think this actually needs to be here right now.
 void ecsClusterApp::HandleResponse(uint32_t nodeID, uint8_t node_status) {
-  m_informationTable[nodeID] = node_status;
+  m_informationTable[nodeID] = GenerateStatusFromUint(node_status);
 }
 //Handles ClusterHeadMeeting messaage received
 void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size) {
@@ -507,12 +507,12 @@ void ecsClusterApp::HandleCHResign(uint32_t nodeID) {
 //Handles neighborhood inquiry from another node and updates this node's information table
 //Sent from standalones and CHs
 void ecsClusterApp::HandleInquiry(uint32_t nodeID, uint8_t node_status) {
-  m_informationTable[nodeID] = node_status;
-  SendStatus(nodeID, generateNodeStatusToUint());
+  m_informationTable[nodeID] = GenerateStatusFromUint(node_status);
+  SendStatus(nodeID, GenerateNodeStatusToUint());
 }
 //Handles status message from neighbor in response to clusterhead claim during standoff
 void ecsClusterApp::HandleStatus(uint32_t nodeID, uint8_t node_status) {
-  m_informationTable[nodeID] = node_status;
+  m_informationTable[nodeID] = GenerateStatusFromUint(node_status);
 }
 
 bool ecsClusterApp::CheckDuplicateMessage(uint64_t messageID) {
@@ -524,7 +524,7 @@ bool ecsClusterApp::CheckDuplicateMessage(uint64_t messageID) {
 }
 
 //Simple function which translates the Node_Status enum to an integer for easier communication
-uint8_t ecsClusterApp::generateNodeStatusToUint() {
+uint8_t ecsClusterApp::GenerateNodeStatusToUint() {
   switch (GetStatus()) {
     case Node_Status::UNSPECIFIED:
       return 0;
@@ -538,6 +538,25 @@ uint8_t ecsClusterApp::generateNodeStatusToUint() {
       return 4;
     case Node_Status::CLUSTER_GUEST:
       return 5;
+  }
+}
+//Simple function to translate uint to node_status enum
+Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status) {
+  switch(status) {
+    case 0:
+      return Node_Status::UNSPECIFIED;
+    case 1:
+      return Node_Status::CLUSTER_HEAD;
+    case 2:
+      return Node_Status::CLUSTER_MEMBER;
+    case 3:
+      return Node_Status::CLUSTER_GATEWAY;
+    case 4:
+      return Node_Status::STANDALONE;
+    case 5:
+      return Node_Status::CLUSTER_GUEST;
+    default:
+      return Node_Status::UNSPECIFIED;
   }
 }
 // this will generate the ID value to use for the requests this is a static function that should be

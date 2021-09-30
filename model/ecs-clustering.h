@@ -76,6 +76,7 @@ class ecsClusterApp : public Application {
     Ptr<Packet> GenerateClusterHeadClaim();
     Ptr<Packet> GenerateMeeting();
     Ptr<Packet> GenerateResponse(uint64_t responseTo);
+    Ptr<Packet> ecsClusterApp::GenerateResign();
 
     // EventId m_election_watchdog_event;
     // EventId m_replica_announcement_event;
@@ -92,6 +93,7 @@ class ecsClusterApp : public Application {
     void SendClusterHeadClaim();
     void SendStatus(uint32_t nodeID, uint8_t statusInt);
     void SendCHMeeting(uint32_t nodeID);
+    void SendResign(uint32_t nodeID);
 
     void SchedulePing();
     void ScheduleClusterHeadClaim();
@@ -108,7 +110,9 @@ class ecsClusterApp : public Application {
 
     bool CheckDuplicateMessage(uint64_t messageID);
 
-    uint8_t generateNodeStatusToUint();
+    uint8_t GenerateNodeStatusToUint();
+    Node_Status GenerateStatusFromUint(uint8_t status);
+    uint64_t GenerateMessageID();
 
     void ScheduleClusterFormationWatchdog();
     void ClusterFormation();
