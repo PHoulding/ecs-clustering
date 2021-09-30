@@ -391,7 +391,7 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //to decide it's own
       //stats.incReceived(Stats::Type::NeighborhoodInquiry);
       HandleInquiry(srcAddress,message.node_status());
-    } else if(message.has_Status()) {
+    } else if(message.has_status()) {
       //Simple message relaying a given node's node_status to another node.
       //Sent when a clusterhead claim is received during cluster formation
     //  stats.incReceived(Stats::Type::StatusRelay);
@@ -539,6 +539,7 @@ uint8_t ecsClusterApp::GenerateNodeStatusToUint() {
     case Node_Status::CLUSTER_GUEST:
       return 5;
   }
+  return 0;
 }
 //Simple function to translate uint to node_status enum
 ecsClusterApp::Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status) {
@@ -558,7 +559,7 @@ ecsClusterApp::Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status)
     default:
       return Node_Status::UNSPECIFIED;
   }
-  return NULL;
+  return Node_Status::UNSPECIFIED;
 }
 // this will generate the ID value to use for the requests this is a static function that should be
 // called to generate all the ids to ensure they are unique
