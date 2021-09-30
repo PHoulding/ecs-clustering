@@ -76,7 +76,7 @@ class ecsClusterApp : public Application {
     Ptr<Packet> GenerateClusterHeadClaim();
     Ptr<Packet> GenerateMeeting();
     Ptr<Packet> GenerateResponse(uint64_t responseTo);
-    Ptr<Packet> ecsClusterApp::GenerateResign();
+    Ptr<Packet> GenerateResign();
 
     // EventId m_election_watchdog_event;
     // EventId m_replica_announcement_event;
