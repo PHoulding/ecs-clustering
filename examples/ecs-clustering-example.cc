@@ -7,7 +7,7 @@
 #include "ns3/config.h"
 #include "ns3/core-module.h"
 #include "ns3/double.h"
-#include "ns3/dsdv-helper.h"
+//#include "ns3/dsdv-helper.h"
 #include "ns3/internet-stack-helper.h"
 #include "ns3/ipv4-address-helper.h"
 #include "ns3/ipv4-interface-container.h"
@@ -117,15 +117,15 @@ main (int argc, char *argv[])
   NS_LOG_UNCOND("Setting up Internet stacks...");
   InternetStackHelper internet;
 
-  if(params.routingProtocol == RoutingType::DSDV) {
-    NS_LOG_DEBUG("Using DSDV routing");
-    DsdvHelper dsdv;
-    internet.SetRoutingHelper(dsdv);
-  } else if(params.routingProtocol == RoutingType::AODV) {
-    NS_LOG_DEBUG("Using AODV routing");
-    AodvHelper aodv;
-    internet.SetRoutingHelper(aodv);
-  }
+  // if(params.routingProtocol == RoutingType::DSDV) {
+  //   NS_LOG_DEBUG("Using DSDV routing");
+  //   DsdvHelper dsdv;
+  //   internet.SetRoutingHelper(dsdv);
+  // } else if(params.routingProtocol == RoutingType::AODV) {
+  NS_LOG_DEBUG("Using AODV routing");
+  AodvHelper aodv;
+  internet.SetRoutingHelper(aodv);
+  //}
   internet.Install(allAdHocNodes);
   Ipv4AddressHelper adhocAddresses;
   adhocAddresses.SetBase("10.1.0.0", "255.255.0.0");
