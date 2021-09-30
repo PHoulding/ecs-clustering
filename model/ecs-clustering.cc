@@ -379,14 +379,14 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //(i.e. information table size) to other. if less table size, resign
       //stats.incReceived(Stats::Type::ClusterHeadMeeting);
       HandleMeeting(srcAddress,message.node_status(),message.meeting().tablesize());
-    } else if(message.has_ClusterHeadResign()) {
+    } else if(message.has_resign()) {
       //clusterhead meeting has occured, and the node broadcasting this message
       //has a smaller information table, thus causing it to resign. This message
       //is broadcasted to all neighbors on the information table. A node recieving this
       //message must then ping all neighbors to figure out it's new node status.
       //stats.incReceived(Stats::Type::ClusterHeadResign);
       HandleCHResign(srcAddress);
-    } else if(message.has_Inquiry()) {
+    } else if(message.has_inquiry()) {
       //Happens when a node needs to learn it's neighbors' node types in order
       //to decide it's own
       //stats.incReceived(Stats::Type::NeighborhoodInquiry);
@@ -541,7 +541,7 @@ uint8_t ecsClusterApp::GenerateNodeStatusToUint() {
   }
 }
 //Simple function to translate uint to node_status enum
-Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status) {
+ecsClusterApp::Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status) {
   switch(status) {
     case 0:
       return Node_Status::UNSPECIFIED;
@@ -558,6 +558,7 @@ Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status) {
     default:
       return Node_Status::UNSPECIFIED;
   }
+  return NULL;
 }
 // this will generate the ID value to use for the requests this is a static function that should be
 // called to generate all the ids to ensure they are unique

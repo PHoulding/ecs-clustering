@@ -111,7 +111,7 @@ class ecsClusterApp : public Application {
     bool CheckDuplicateMessage(uint64_t messageID);
 
     uint8_t GenerateNodeStatusToUint();
-    Node_Status GenerateStatusFromUint(uint8_t status);
+    ecsClusterApp::Node_Status GenerateStatusFromUint(uint8_t status);
     uint64_t GenerateMessageID();
 
     void ScheduleClusterFormationWatchdog();
