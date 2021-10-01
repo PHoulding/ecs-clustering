@@ -96,6 +96,7 @@ class ecsClusterApp : public Application {
     void SendResign(uint32_t nodeID);
 
     void SchedulePing();
+    void ScheduleWakeup();
     void ScheduleClusterHeadClaim();
 
     void HandleRequest(Ptr<Socket> socket);

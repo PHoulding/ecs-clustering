@@ -41,7 +41,7 @@ NS_LOG_COMPONENT_DEFINE("EcsClusteringExample");
 void setupTravellerNodes(const SimulationParameters& params, NodeContainer& nodes) {
   NS_LOG_UNCOND("Setting up traveller node mobility models...");
   NodeContainer travellers;
-  travellers.Create(params.travellerNodes);
+  travellers.Create(params.totalNodes);
 
   MobilityHelper travellerMobilityHelper;
   travellerMobilityHelper.SetPositionAllocator(params.area.getRandomRectanglePositionAllocator());
@@ -80,6 +80,7 @@ main (int argc, char *argv[])
 
   /* Create nodes, network topology, and start simulation. */
   NodeContainer allAdHocNodes;
+  //allAdHocNodes.Create(params.totalNodes);
   NS_LOG_DEBUG("Simulation running over area: " << params.area);
   // Set up the traveller nodes.
   // Travellers can move across the whole simulation space.

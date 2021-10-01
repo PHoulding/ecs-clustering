@@ -28,6 +28,7 @@ Random thoughts:
 #include "ns3/output-stream-wrapper.h"
 #include "ns3/pointer.h"
 #include "ns3/udp-socket-factory.h"
+#include "ns3/random-variable-stream.h"
 
 #include "logging.h"
 #include "nsutil.h"
@@ -58,7 +59,7 @@ TypeId ecsClusterApp::GetTypeId() {
     .AddAttribute(
       "StandoffTime",
       "Maximum amount of time for nodes to claim cluster head. They can activate beforehand (so_t)",
-      TimeValue(2.0_min),
+      TimeValue(3.0_sec),
       MakeTimeAccessor(&ecsClusterApp::m_standoff_time),
       MakeTimeChecker(0.1_sec));
   return id;
@@ -82,7 +83,7 @@ void ecsClusterApp::StartApplication() {
     NS_LOG_DEBUG("Ignoring ecsClusterApp::StartApplication request on already started application");
     return;
   }
-  NS_LOG_DEBUG("Starting ecsClusterApp");
+  NS_LOG_UNCOND("Starting ecsClusterApp");
   m_state = State::NOT_STARTED;
 
   if(m_socket_recv == 0) {
@@ -102,6 +103,10 @@ void ecsClusterApp::StartApplication() {
 
 
   //Scheduling of events. Maybe this is where i put the algorithm??
+
+  //SchedulePing();
+  //NS_LOG_UNCOND("Ping Scheduled");
+  ScheduleWakeup();
   SchedulePing();
   //ScheduleClusterFormationWatchdog();
 }
@@ -292,6 +297,7 @@ I imagine this is just functions that call the helper functions in the other sen
 void ecsClusterApp::SendPing(uint8_t node_status) {
   Ptr<Packet> message = GeneratePing(node_status);
   BroadcastToNeighbors(message);
+  //NS_LOG_UNCOND("Ping Sent!");
 }
 
 // void ecsClusterApp::SendResponse(uint64_t requestID, uint32_t nodeID) {
@@ -302,18 +308,22 @@ void ecsClusterApp::SendPing(uint8_t node_status) {
 void ecsClusterApp::SendClusterHeadClaim() {
   Ptr<Packet> message = GenerateClusterHeadClaim();
   BroadcastToNeighbors(message);
+  NS_LOG_UNCOND("CH Claim Sent!");
 }
 void ecsClusterApp::SendStatus(uint32_t nodeID, uint8_t statusInt) {
   Ptr<Packet> message = GeneratePing(GenerateNodeStatusToUint());
   SendMessage(Ipv4Address(nodeID), message);
+  NS_LOG_UNCOND("Status Sent!");
 }
 void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
   Ptr<Packet> message = GenerateMeeting();
   SendMessage(Ipv4Address(nodeID), message);
+  NS_LOG_UNCOND("CH Meeting Sent!");
 }
 void ecsClusterApp::SendResign(uint32_t nodeID) {
   Ptr<Packet> message = GenerateResign();
   BroadcastToNeighbors(message);
+  NS_LOG_UNCOND("Resign Sent!");
 }
 
 /**
@@ -322,8 +332,19 @@ Event schedulers
 void ecsClusterApp::SchedulePing() {
   if(m_state != State::RUNNING) return;
   SendPing(GenerateNodeStatusToUint());
-
   m_ping_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::SchedulePing, this);
+}
+void ecsClusterApp::ScheduleWakeup() {
+  if(m_state != State::RUNNING) return;
+  if(m_node_status != Node_Status::UNSPECIFIED) return;
+  SendClusterHeadClaim();
+  SetStatus(Node_Status::CLUSTER_HEAD);
+
+  Ptr<UniformRandomVariable> standoff = CreateObject<UniformRandomVariable> ();
+  standoff->SetAttribute("Min", DoubleValue(0.1));
+  standoff->SetAttribute("Min", DoubleValue(3.0));
+  Time dTime = ns3::Time::FromDouble(standoff->GetValue(), ns3::Time::Unit::S);
+  m_CH_claim = Simulator::Schedule(dTime, &ecsClusterApp::ScheduleWakeup, this);
 }
 
 void ecsClusterApp::ScheduleClusterHeadClaim() {
@@ -348,7 +369,7 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
 
   while ((packet = socket->RecvFrom(from))) {
     socket->GetSockName(localAddress);
-    NS_LOG_INFO(
+    NS_LOG_UNCOND(
       "At time " << Simulator::Now().GetSeconds() << "s client recieved " << packet->GetSize()
                  << " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4() << " port "
                  << InetSocketAddress::ConvertFrom(from).GetPort());
@@ -365,6 +386,7 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //ping received
       //stats.incReceived(Stats::Type::PING);
       HandlePing(srcAddress, message.node_status());
+
     } else if(message.has_claim()) {
       //CH claim received
       //stats.incReceived(Stats::Type::Claim);
