@@ -15,4 +15,4 @@ jobs:
         location: 'contrib'
         pre_run: 'pre.sh'
         sim_name: 'ecs-clustering-example'
-        sim_args: '--runTime=120'
+        sim_args: '--runTime=120 --gdb'
