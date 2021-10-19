@@ -58,6 +58,7 @@ class ecsClusterApp : public Application {
     uint32_t m_neighborhoodHops;
     Time m_profileDelay;
     Time m_standoff_time;
+    Time m_inquiry_timeout;
 
     Ptr<Socket> m_socket_recv;
     Ptr<Socket> m_neighborhood_socket;
@@ -77,13 +78,15 @@ class ecsClusterApp : public Application {
     Ptr<Packet> GenerateMeeting();
     Ptr<Packet> GenerateResponse(uint64_t responseTo);
     Ptr<Packet> GenerateResign();
+    Ptr<Packet> GenerateInquiry();
 
     // EventId m_election_watchdog_event;
     // EventId m_replica_announcement_event;
     EventId m_ping_event;
     // EventId m_election_results_event;
     EventId m_table_update_event;
-    EventId m_CH_claim;
+    EventId m_CH_claim_event;
+    EventId m_inquiry_event;
 
 
     void BroadcastToNeighbors(Ptr<Packet> packet);
@@ -94,10 +97,13 @@ class ecsClusterApp : public Application {
     void SendStatus(uint32_t nodeID, uint8_t statusInt);
     void SendCHMeeting(uint32_t nodeID);
     void SendResign(uint32_t nodeID);
+    void SendInquiry();
 
     void SchedulePing();
     void ScheduleWakeup();
     void ScheduleClusterHeadClaim();
+    void ScheduleInquiry();
+    void ScheduleRefreshRoutingTable();
 
     void HandleRequest(Ptr<Socket> socket);
     void HandlePing(uint32_t nodeID, uint8_t node_status);
@@ -117,6 +123,9 @@ class ecsClusterApp : public Application {
 
     void ScheduleClusterFormationWatchdog();
     void ClusterFormation();
+
+    std::string GetRoutingTableString();
+    void RefreshRoutingTable();
 
 
     uint32_t m_address;

@@ -11,6 +11,8 @@ Random thoughts:
 
 #include <algorithm>
 #include <map>
+#include <iostream>
+#include <string>
 
 #include <cfloat>
 #include <limits>
@@ -34,7 +36,9 @@ Random thoughts:
 #include "nsutil.h"
 #include "util.h"
 #include "ecs-clustering.h"
+
 #include "proto/messages.pb.h"
+#include <google/protobuf/text_format.h>
 
 namespace ecs {
 
@@ -61,6 +65,12 @@ TypeId ecsClusterApp::GetTypeId() {
       "Maximum amount of time for nodes to claim cluster head. They can activate beforehand (so_t)",
       TimeValue(3.0_sec),
       MakeTimeAccessor(&ecsClusterApp::m_standoff_time),
+      MakeTimeChecker(0.1_sec))
+    .AddAttribute(
+      "ProfileUpdateDelay",
+      "Time to wait between profile update and exchange (T)",
+      TimeValue(6.0_sec),
+      MakeTimeAccessor(&ecsClusterApp::m_profileDelay),
       MakeTimeChecker(0.1_sec));
   return id;
 }
@@ -83,7 +93,7 @@ void ecsClusterApp::StartApplication() {
     NS_LOG_DEBUG("Ignoring ecsClusterApp::StartApplication request on already started application");
     return;
   }
-  NS_LOG_UNCOND("Starting ecsClusterApp");
+  //NS_LOG_UNCOND("Starting ecsClusterApp");
   m_state = State::NOT_STARTED;
 
   if(m_socket_recv == 0) {
@@ -100,6 +110,7 @@ void ecsClusterApp::StartApplication() {
   m_peerTable = Table(m_profileDelay.GetSeconds(), m_neighborhoodHops);
   m_state = State::RUNNING;
   m_node_status = Node_Status::UNSPECIFIED;
+  m_inquiry_timeout = ns3::Time::FromDouble(5.0, ns3::Time::Unit::S);
 
 
   //Scheduling of events. Maybe this is where i put the algorithm??
@@ -107,7 +118,9 @@ void ecsClusterApp::StartApplication() {
   //SchedulePing();
   //NS_LOG_UNCOND("Ping Scheduled");
   ScheduleWakeup();
-  SchedulePing();
+  //SchedulePing();
+  //ScheduleInquiry();
+  //ScheduleRefreshRoutingTable();
   //ScheduleClusterFormationWatchdog();
 }
 //override
@@ -135,6 +148,11 @@ void ecsClusterApp::StopApplication() {
   }
   m_state = State::STOPPED;
   //TODO: Cancel events
+  m_ping_event.Cancel();
+  m_table_update_event.Cancel();
+  m_CH_claim_event.Cancel();
+  m_inquiry_event.Cancel();
+
 }
 
 ecsClusterApp::Node_Status ecsClusterApp::GetStatus() const { return m_node_status; }
@@ -180,6 +198,7 @@ Ptr<Socket> ecsClusterApp::SetupSendSocket(uint16_t port, uint8_t ttl) {
   socket->SetRecvCallback(MakeCallback(&ecsClusterApp::HandleRequest, this));
   return socket;
 }
+
 Ptr<Socket> ecsClusterApp::SetupSocket(uint16_t port, uint32_t ttl) {
   return ttl == 0 ? SetupRcvSocket(port) : SetupSendSocket(port, ttl);
 }
@@ -240,16 +259,14 @@ Ptr<Packet> ecsClusterApp::GenerateResign() {
   return GeneratePacket(message);
 
 }
-// Ptr<Packet> ecsClusterApp::GenerateResponse(uint64_t responseTo) {
-//   ecs::packets::Message message;
-//   message.set_id(GenerateMessageID());
-//   message.set_timestamp(Simulator::Now().GetMilliSeconds());
-//
-//   ecs::packets::Response* response = message.mutable_response();
-//   response->set_request_id(responseTo);
-//
-//   return GeneratePacket(message);
-// }
+Ptr<Packet> ecsClusterApp::GenerateInquiry() {
+  ecs::packets::Message message;
+  message.set_id(GenerateMessageID());
+  message.set_timestamp(Simulator::Now().GetMilliSeconds());
+
+  message.mutable_inquiry();
+  return GeneratePacket(message);
+}
 
 /**
 Generate packet to be sent around
@@ -270,6 +287,7 @@ static Ptr<Packet> GeneratePacket(const ecs::packets::Message message) {
 static ecs::packets::Message ParsePacket(const Ptr<Packet> packet) {
   uint32_t size = packet->GetSize();
   uint8_t* payload = new uint8_t[size];
+  packet->CopyData(payload, size);
 
   ecs::packets::Message message;
   message.ParseFromArray(payload, size);
@@ -300,30 +318,32 @@ void ecsClusterApp::SendPing(uint8_t node_status) {
   //NS_LOG_UNCOND("Ping Sent!");
 }
 
-// void ecsClusterApp::SendResponse(uint64_t requestID, uint32_t nodeID) {
-//   Ptr<Packet> message = GenerateResponse(requestID);
-//   SendMessage(Ipv4Address(nodeID), message);
-// }
-
 void ecsClusterApp::SendClusterHeadClaim() {
+  SetStatus(Node_Status::CLUSTER_HEAD);
   Ptr<Packet> message = GenerateClusterHeadClaim();
   BroadcastToNeighbors(message);
-  NS_LOG_UNCOND("CH Claim Sent!");
+//  NS_LOG_UNCOND("CH Claim Sent!");
 }
+
 void ecsClusterApp::SendStatus(uint32_t nodeID, uint8_t statusInt) {
   Ptr<Packet> message = GeneratePing(GenerateNodeStatusToUint());
   SendMessage(Ipv4Address(nodeID), message);
-  NS_LOG_UNCOND("Status Sent!");
+  //NS_LOG_UNCOND("Status Sent!");
 }
 void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
   Ptr<Packet> message = GenerateMeeting();
   SendMessage(Ipv4Address(nodeID), message);
-  NS_LOG_UNCOND("CH Meeting Sent!");
+//  NS_LOG_UNCOND("CH Meeting Sent!");
 }
 void ecsClusterApp::SendResign(uint32_t nodeID) {
   Ptr<Packet> message = GenerateResign();
   BroadcastToNeighbors(message);
-  NS_LOG_UNCOND("Resign Sent!");
+//  NS_LOG_UNCOND("Resign Sent!");
+}
+void ecsClusterApp::SendInquiry() {
+  Ptr<Packet> message = GenerateInquiry();
+  BroadcastToNeighbors(message);
+//  NS_LOG_UNCOND("Inquiry sent");
 }
 
 /**
@@ -334,17 +354,26 @@ void ecsClusterApp::SchedulePing() {
   SendPing(GenerateNodeStatusToUint());
   m_ping_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::SchedulePing, this);
 }
+
 void ecsClusterApp::ScheduleWakeup() {
   if(m_state != State::RUNNING) return;
   if(m_node_status != Node_Status::UNSPECIFIED) return;
-  SendClusterHeadClaim();
-  SetStatus(Node_Status::CLUSTER_HEAD);
+  //SendClusterHeadClaim();
+  //SetStatus(Node_Status::CLUSTER_HEAD);
 
   Ptr<UniformRandomVariable> standoff = CreateObject<UniformRandomVariable> ();
   standoff->SetAttribute("Min", DoubleValue(0.1));
   standoff->SetAttribute("Min", DoubleValue(3.0));
-  Time dTime = ns3::Time::FromDouble(standoff->GetValue(), ns3::Time::Unit::S);
-  m_CH_claim = Simulator::Schedule(dTime, &ecsClusterApp::ScheduleWakeup, this);
+  m_standoff_time = ns3::Time::FromDouble(standoff->GetValue(), ns3::Time::Unit::S);
+  m_CH_claim_event = Simulator::Schedule(m_standoff_time, &ecsClusterApp::SendClusterHeadClaim, this);
+}
+
+void ecsClusterApp::ScheduleInquiry() {
+  if(m_state != State::RUNNING) return;
+  SendInquiry();
+
+  m_inquiry_event = Simulator::Schedule(m_inquiry_timeout, &ecsClusterApp::ScheduleInquiry, this);
+
 }
 
 void ecsClusterApp::ScheduleClusterHeadClaim() {
@@ -354,7 +383,16 @@ void ecsClusterApp::ScheduleClusterHeadClaim() {
   SetStatus(Node_Status::CLUSTER_HEAD);
   //m_node_status = CLUSTER_HEAD;
 
-  m_CH_claim = Simulator::Schedule(m_profileDelay, &ecsClusterApp::ScheduleClusterHeadClaim, this);
+  m_CH_claim_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::ScheduleClusterHeadClaim, this);
+}
+
+void ecsClusterApp::ScheduleRefreshRoutingTable() {
+  if (m_state != State::RUNNING) return;
+
+  RefreshRoutingTable();
+
+  m_table_update_event =
+      Simulator::Schedule(1.0_sec, &ecsClusterApp::ScheduleRefreshRoutingTable, this);
 }
 //TODO: add more scheduled events????
 
@@ -369,10 +407,10 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
 
   while ((packet = socket->RecvFrom(from))) {
     socket->GetSockName(localAddress);
-    NS_LOG_UNCOND(
-      "At time " << Simulator::Now().GetSeconds() << "s client recieved " << packet->GetSize()
-                 << " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4() << " port "
-                 << InetSocketAddress::ConvertFrom(from).GetPort());
+    // NS_LOG_UNCOND(
+    //   "At time " << Simulator::Now().GetSeconds() << "s client recieved " << packet->GetSize()
+    //              << " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4() << " port "
+    //              << InetSocketAddress::ConvertFrom(from).GetPort());
 
     uint32_t srcAddress = InetSocketAddress::ConvertFrom(from).GetIpv4().Get();
     ecs::packets::Message message = ParsePacket(packet);
@@ -382,24 +420,24 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
     //  stats.incDuplicate();
       return;
     }
+    // std::string s;
+    // google::protobuf::TextFormat::PrintToString(message, &s);
+    // std::cout << s;
     if(message.has_ping()) {
       //ping received
       //stats.incReceived(Stats::Type::PING);
+      //NS_LOG_UNCOND("Ping Received");
       HandlePing(srcAddress, message.node_status());
-
     } else if(message.has_claim()) {
       //CH claim received
       //stats.incReceived(Stats::Type::Claim);
+      NS_LOG_UNCOND("Claim Received " << std::to_string(GenerateNodeStatusToUint()));
       HandleClaim(srcAddress);
-    //} else if(message.has_response()) {
-      //response received, could be:
-      //response to ping,
-      //stats.incReceived(Stats::Type::Response);
-    //  HandleResponse(srcAddress,message.response().node_status());
     } else if(message.has_meeting()) {
       //clusterhead meeting, handle by sending number of connected nodes
       //(i.e. information table size) to other. if less table size, resign
       //stats.incReceived(Stats::Type::ClusterHeadMeeting);
+      NS_LOG_UNCOND("Meeting Received " << std::to_string(GenerateNodeStatusToUint()));
       HandleMeeting(srcAddress,message.node_status(),message.meeting().tablesize());
     } else if(message.has_resign()) {
       //clusterhead meeting has occured, and the node broadcasting this message
@@ -407,16 +445,19 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //is broadcasted to all neighbors on the information table. A node recieving this
       //message must then ping all neighbors to figure out it's new node status.
       //stats.incReceived(Stats::Type::ClusterHeadResign);
+      NS_LOG_UNCOND("CHResign Received " << std::to_string(GenerateNodeStatusToUint()));
       HandleCHResign(srcAddress);
     } else if(message.has_inquiry()) {
       //Happens when a node needs to learn it's neighbors' node types in order
       //to decide it's own
       //stats.incReceived(Stats::Type::NeighborhoodInquiry);
+      //NS_LOG_UNCOND("Inquiry Received");
       HandleInquiry(srcAddress,message.node_status());
     } else if(message.has_status()) {
       //Simple message relaying a given node's node_status to another node.
       //Sent when a clusterhead claim is received during cluster formation
     //  stats.incReceived(Stats::Type::StatusRelay);
+      //NS_LOG_UNCOND("Status Received");
       HandleStatus(srcAddress,message.node_status());
     } else {
     //  stats.incReceived(Stats::Type::UKNOWN);
@@ -446,8 +487,10 @@ void ecsClusterApp::HandlePing(uint32_t nodeID, uint8_t node_status) {
 }
 //Handles another node sending a clusterhead claim. Follows the algorithm from the paper
 void ecsClusterApp::HandleClaim(uint32_t nodeID) {
+  m_informationTable[nodeID] = Node_Status::CLUSTER_HEAD;
   //if in standoff, automatically join their cluster
   if(Simulator::Now() < m_standoff_time) {
+    m_CH_claim_event.Cancel();
     switch (GetStatus()) {
       case Node_Status::UNSPECIFIED:
         SetStatus(Node_Status::CLUSTER_MEMBER);
@@ -519,9 +562,22 @@ void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t
 //Handles CHResign message
 void ecsClusterApp::HandleCHResign(uint32_t nodeID) {
   m_informationTable[nodeID] = m_node_status;
+  NS_LOG_UNCOND(m_informationTable.size());
   //Possibly queue new CH formation??
   if(m_node_status != Node_Status::CLUSTER_HEAD) {
     //iterate through information table, if any heads, break, otherwise send CH claim
+    std::map<uint32_t, Node_Status>::iterator it;
+    bool checkForCH = true;
+    for (it = m_informationTable.begin(); it != m_informationTable.end(); it++) {
+
+      if(it->second == Node_Status::CLUSTER_HEAD) {
+        checkForCH=false;
+        break;
+      }
+    }
+    if(checkForCH) {
+      SendClusterHeadClaim();
+    }
   } else {
     return;
   }
@@ -588,6 +644,21 @@ ecsClusterApp::Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status)
 uint64_t ecsClusterApp::GenerateMessageID() {
   static uint64_t id = 0;
   return ++id;
+}
+
+std::string ecsClusterApp::GetRoutingTableString() {
+  Ptr<Ipv4> ipv4 = GetNode()->GetObject<Ipv4>();
+  Ptr<Ipv4RoutingProtocol> table = ipv4->GetRoutingProtocol();
+  NS_ASSERT(table);
+  std::ostringstream ss;
+  table->PrintRoutingTable(Create<OutputStreamWrapper>(&ss));
+
+  return ss.str();
+}
+
+void ecsClusterApp::RefreshRoutingTable() {
+  //NS_LOG_UNCOND("HERE1");
+  m_peerTable.UpdateTable(GetRoutingTableString());
 }
 
 // void ecsClusterApp::ScheduleClusterFormationWatchdog() {

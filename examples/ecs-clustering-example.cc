@@ -134,8 +134,7 @@ main (int argc, char *argv[])
 
   ecsClusterAppHelper ecs;
   ecs.SetAttribute("NeighborhoodSize", UintegerValue(params.neighborhoodSize));
-  //ecs.SetAttribute("NodeStatus", EnumValue(ecsClusterApp::Node_Status::UNSPECIFIED));
-  //ecs.SetAttribute("NodeStatus", EnumValue(ecsClusterApp::Node_Status::UNSPECIFIED));
+  ecs.SetAttribute("StandoffTime", TimeValue(params.standoffTime));
 
   ApplicationContainer ecsApps = ecs.Install(allAdHocNodes);
   if(params.staggeredStart) {
@@ -149,6 +148,10 @@ main (int argc, char *argv[])
   ecsApps.Stop(params.runtime);
 
   NS_LOG_UNCOND("Running simulation for " << params.runtime.GetSeconds() << " seconds...");
+
+  wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
+  wifiPhy.EnablePcap("ecs-out", allAdHocNodes);
+
   Simulator::Run ();
   Simulator::Destroy ();
   NS_LOG_UNCOND("Done.");

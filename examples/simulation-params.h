@@ -57,6 +57,7 @@ class SimulationParameters {
     ns3::Time updateTime;
     ns3::Time lookupTime;
     ns3::Time waitTime;
+    ns3::Time standoffTime;
 
     ns3::Time requestTimeout;
 

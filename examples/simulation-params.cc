@@ -31,15 +31,16 @@ namespace ecs {
 std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char* argv[]) {
   /* Default simulation values. */
   // Simulation run time.
-  double optRuntime = 2.0_minutes;
+  double optRuntime = 10.0_seconds;//2.0_minutes;
 
   double optWaitTime = 30.0_seconds;
+  double optStandoffTime = 5.0_seconds;
 
   // Simulation seed.
   uint32_t optSeed = 1;
 
   // Node parameters.
-  uint32_t optTotalNodes = 160;
+  uint32_t optTotalNodes = 10;//160;
   uint32_t optNeighborhoodSize = 1;
 
   // Simulation area parameters.
@@ -113,6 +114,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
       optRequestTimeout);
   cmd.AddValue("routing", "One of either 'DSDV' or 'AODV'", optRoutingProtocol);
   cmd.AddValue("wifiRadius", "The radius of connectivity for each node in meters", optWifiRadius);
+  cmd.AddValue("standoffTime", "The max time for nodes to sleep (they are given a random from 0 to this)", optStandoffTime);
   // cmd.AddValue("animationXml", "Output file path for NetAnim trace file",
   // animationTraceFilePath);
   cmd.Parse(argc, argv);
@@ -206,6 +208,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   result.neighborhoodSize = optNeighborhoodSize;
   result.requestTimeout = Seconds(optRequestTimeout);
   result.waitTime = Seconds(optWaitTime);
+  result.standoffTime = Seconds(optStandoffTime);
 
   //result.pbnVelocity = pbnVelocityGenerator;
   //result.pbnVelocityChangePeriod = Seconds(optPbnVelocityChangeAfter);
