@@ -31,7 +31,7 @@ namespace ecs {
 std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char* argv[]) {
   /* Default simulation values. */
   // Simulation run time.
-  double optRuntime = 10.0_seconds;//2.0_minutes;
+  double optRuntime = 2.0_minutes; //10.0_seconds;
 
   double optWaitTime = 30.0_seconds;
   double optStandoffTime = 5.0_seconds;
@@ -40,12 +40,12 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   uint32_t optSeed = 1;
 
   // Node parameters.
-  uint32_t optTotalNodes = 10;//160;
+  uint32_t optTotalNodes = 25;//160;
   uint32_t optNeighborhoodSize = 1;
 
   // Simulation area parameters.
-  double optAreaWidth = 1000.0_meters;
-  double optAreaLength = 1000.0_meters;
+  double optAreaWidth = 10.0_meters;
+  double optAreaLength = 10.0_meters;
 
 
   // Traveller mobility model parameters.
@@ -60,7 +60,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
 
 
   // Link and network parameters.
-  std::string optRoutingProtocol = "dsdv";
+  std::string optRoutingProtocol = "aodv";
   double optWifiRadius = 100.0_meters;
 
   bool optStaggeredStart = false;

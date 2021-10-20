@@ -45,6 +45,8 @@ class ecsClusterApp : public Application {
     Node_Status GetStatus() const;
     State GetState() const;
 
+    static void CleanUp();
+
 
 //local based vars & functions
   private:
@@ -127,6 +129,8 @@ class ecsClusterApp : public Application {
     std::string GetRoutingTableString();
     void RefreshRoutingTable();
 
+    void CancelEventMap(std::map<uint64_t, EventId> events);
+    void CancelEventMap(std::map<uint32_t, EventId> events);
 
     uint32_t m_address;
     std::map<uint32_t, Node_Status> m_informationTable;

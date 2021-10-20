@@ -143,20 +143,23 @@ main (int argc, char *argv[])
     jitter->SetAttribute("Variance", DoubleValue(params.staggeredVariance));
     ecsApps.StartWithJitter(Seconds(0), jitter);
   } else {
-    ecsApps.Start(Seconds(0));
+    ecsApps.Start(params.waitTime);
   }
   ecsApps.Stop(params.runtime);
 
   NS_LOG_UNCOND("Running simulation for " << params.runtime.GetSeconds() << " seconds...");
-
+  NS_LOG_UNCOND("Max running time is " << Simulator::GetMaximumSimulationTime());
+  NS_LOG_UNCOND("With " << params.totalNodes << " nodes");
   wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
   wifiPhy.EnablePcap("ecs-out", allAdHocNodes);
 
-  Simulator::Run ();
-  Simulator::Destroy ();
+  Simulator::Stop(params.runtime + 1.0_sec);
+
+  Simulator::Run();
+  Simulator::Destroy();
   NS_LOG_UNCOND("Done.");
 
-  //ecsClusterApp::CleanUp();
+  ecsClusterApp::CleanUp();
 
   return 0;
 }
