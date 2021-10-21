@@ -79,7 +79,7 @@ class ecsClusterApp : public Application {
     Ptr<Packet> GenerateClusterHeadClaim();
     Ptr<Packet> GenerateMeeting();
     Ptr<Packet> GenerateResponse(uint64_t responseTo);
-    Ptr<Packet> GenerateResign();
+    Ptr<Packet> GenerateResign(uint8_t node_status);
     Ptr<Packet> GenerateInquiry();
 
     // EventId m_election_watchdog_event;
@@ -89,6 +89,7 @@ class ecsClusterApp : public Application {
     EventId m_table_update_event;
     EventId m_CH_claim_event;
     EventId m_inquiry_event;
+    EventId m_check_CHResign_event;
 
 
     void BroadcastToNeighbors(Ptr<Packet> packet);
@@ -96,9 +97,9 @@ class ecsClusterApp : public Application {
     void SendPing(uint8_t node_status);
     void SendResponse(uint64_t requestID, uint32_t nodeID);
     void SendClusterHeadClaim();
-    void SendStatus(uint32_t nodeID, uint8_t statusInt);
+    void SendStatus(uint32_t nodeID);
     void SendCHMeeting(uint32_t nodeID);
-    void SendResign(uint32_t nodeID);
+    void SendResign(uint8_t node_status);
     void SendInquiry();
 
     void SchedulePing();
@@ -113,7 +114,7 @@ class ecsClusterApp : public Application {
     void HandleResponse(uint32_t nodeID, uint8_t node_status);
     //create getNeighborhoodSize method
     void HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size);
-    void HandleCHResign(uint32_t nodeID);
+    void HandleCHResign(uint32_t nodeID, uint8_t node_status);
     void HandleInquiry(uint32_t nodeID, uint8_t node_status);
     void HandleStatus(uint32_t nodeId, uint8_t node_status);
 
@@ -128,6 +129,8 @@ class ecsClusterApp : public Application {
 
     std::string GetRoutingTableString();
     void RefreshRoutingTable();
+    void RefreshInformationTable();
+    void CheckCHShouldResign();
 
     void CancelEventMap(std::map<uint64_t, EventId> events);
     void CancelEventMap(std::map<uint32_t, EventId> events);
