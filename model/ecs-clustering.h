@@ -60,7 +60,9 @@ class ecsClusterApp : public Application {
     uint32_t m_neighborhoodHops;
     Time m_profileDelay;
     Time m_standoff_time;
+    Time random_m_standoff_time;
     Time m_inquiry_timeout;
+    Time m_waitTime;
 
     Ptr<Socket> m_socket_recv;
     Ptr<Socket> m_neighborhood_socket;

@@ -34,7 +34,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   double optRuntime = 2.0_minutes; //10.0_seconds;
 
   double optWaitTime = 30.0_seconds;
-  double optStandoffTime = 5.0_seconds;
+  double optStandoffTime = optWaitTime+5.0_seconds;
 
   // Simulation seed.
   uint32_t optSeed = 1;

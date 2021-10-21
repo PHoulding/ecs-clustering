@@ -135,6 +135,7 @@ main (int argc, char *argv[])
   ecsClusterAppHelper ecs;
   ecs.SetAttribute("NeighborhoodSize", UintegerValue(params.neighborhoodSize));
   ecs.SetAttribute("StandoffTime", TimeValue(params.standoffTime));
+  ecs.SetAttribute("WaitTime", TimeValue(params.waitTime));
 
   ApplicationContainer ecsApps = ecs.Install(allAdHocNodes);
   if(params.staggeredStart) {
