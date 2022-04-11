@@ -1,0 +1,15 @@
+pre.sh
+post.sh
+run-clang-format.py
+.clang-format
+.vscode
+.git
+.github
+.gitignore
+.dockerignore
+Dockerfile
+
+
+# remove this if SEM gets added to the container
+simulation.py
+
