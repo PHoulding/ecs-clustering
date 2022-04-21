@@ -92,6 +92,7 @@ class ecsClusterApp : public Application {
     EventId m_CH_claim_event;
     EventId m_inquiry_event;
     EventId m_check_CHResign_event;
+    EventId m_print_table_event;
 
 
     void BroadcastToNeighbors(Ptr<Packet> packet);
@@ -109,6 +110,7 @@ class ecsClusterApp : public Application {
     void ScheduleClusterHeadClaim();
     void ScheduleInquiry();
     void ScheduleRefreshRoutingTable();
+    void SchedulePrintInformationTable();
 
     void HandleRequest(Ptr<Socket> socket);
     void HandlePing(uint32_t nodeID, uint8_t node_status);
@@ -123,7 +125,8 @@ class ecsClusterApp : public Application {
     bool CheckDuplicateMessage(uint64_t messageID);
 
     uint8_t GenerateNodeStatusToUint();
-    ecsClusterApp::Node_Status GenerateStatusFromUint(uint8_t status);
+    Node_Status GenerateStatusFromUint(uint8_t status);
+    uint8_t NodeStatusToUintFromTable(Node_Status status);
     uint64_t GenerateMessageID();
 
     void ScheduleClusterFormationWatchdog();
@@ -136,6 +139,8 @@ class ecsClusterApp : public Application {
 
     void CancelEventMap(std::map<uint64_t, EventId> events);
     void CancelEventMap(std::map<uint32_t, EventId> events);
+    void PrintCustomClusterTable();
+
 
     uint32_t m_address;
     std::map<uint32_t, Node_Status> m_informationTable;

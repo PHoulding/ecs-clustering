@@ -40,12 +40,12 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   uint32_t optSeed = 1;
 
   // Node parameters.
-  uint32_t optTotalNodes = 25;//160;
+  uint32_t optTotalNodes = 30;//160;
   uint32_t optNeighborhoodSize = 1;
 
   // Simulation area parameters.
-  double optAreaWidth = 10.0_meters;
-  double optAreaLength = 10.0_meters;
+  double optAreaWidth = 1000.0_meters;
+  double optAreaLength = 1000.0_meters;
 
 
   // Traveller mobility model parameters.

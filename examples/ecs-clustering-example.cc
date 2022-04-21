@@ -81,7 +81,7 @@ main (int argc, char *argv[])
   /* Create nodes, network topology, and start simulation. */
   NodeContainer allAdHocNodes;
   //allAdHocNodes.Create(params.totalNodes);
-  NS_LOG_DEBUG("Simulation running over area: " << params.area);
+  NS_LOG_UNCOND("Simulation running over area: " << params.area);
   // Set up the traveller nodes.
   // Travellers can move across the whole simulation space.
   setupTravellerNodes(params, allAdHocNodes);
@@ -149,6 +149,7 @@ main (int argc, char *argv[])
   ecsApps.Stop(params.runtime);
 
   NS_LOG_UNCOND("Running simulation for " << params.runtime.GetSeconds() << " seconds...");
+  NS_LOG_UNCOND("params.runtime = " << params.runtime + 1.0_sec);
   NS_LOG_UNCOND("Max running time is " << Simulator::GetMaximumSimulationTime());
   NS_LOG_UNCOND("With " << params.totalNodes << " nodes");
   wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);

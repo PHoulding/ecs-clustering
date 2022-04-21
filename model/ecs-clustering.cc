@@ -329,7 +329,10 @@ void ecsClusterApp::SendClusterHeadClaim() {
   SetStatus(Node_Status::CLUSTER_HEAD);
   Ptr<Packet> message = GenerateClusterHeadClaim();
   BroadcastToNeighbors(message);
-//  NS_LOG_UNCOND("CH Claim Sent!");
+  NS_LOG_UNCOND("CH Claim Sent from " << GetID() <<"\n");
+  SchedulePrintInformationTable();
+  //PrintCustomClusterTable();
+  //NS_LOG_UNCOND("CH Claim Sent! \n" << GetRoutingTableString());
 }
 
 void ecsClusterApp::SendStatus(uint32_t nodeID) {
@@ -340,12 +343,12 @@ void ecsClusterApp::SendStatus(uint32_t nodeID) {
 void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
   Ptr<Packet> message = GenerateMeeting();
   SendMessage(Ipv4Address(nodeID), message);
-//  NS_LOG_UNCOND("CH Meeting Sent!");
+  NS_LOG_UNCOND("CH Meeting Sent!");
 }
 void ecsClusterApp::SendResign(uint8_t node_status) {
   Ptr<Packet> message = GenerateResign(node_status);
   BroadcastToNeighbors(message);
-//  NS_LOG_UNCOND("Resign Sent!");
+  NS_LOG_UNCOND("Resign Sent!");
 }
 void ecsClusterApp::SendInquiry() {
   Ptr<Packet> message = GenerateInquiry();
@@ -406,6 +409,11 @@ void ecsClusterApp::ScheduleRefreshRoutingTable() {
   m_table_update_event =
       Simulator::Schedule(1.0_sec, &ecsClusterApp::ScheduleRefreshRoutingTable, this);
 }
+// Scheduled event to print information table 3 seconds after clusterhead claim
+void ecsClusterApp::SchedulePrintInformationTable() {
+  m_print_table_event =
+      Simulator::Schedule(Simulator::Now()+1.0_sec, &ecsClusterApp::PrintCustomClusterTable, this);
+}
 //TODO: add more scheduled events????
 
 /**
@@ -444,8 +452,8 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
     } else if(message.has_claim()) {
       //CH claim received
       //stats.incReceived(Stats::Type::Claim);
-      NS_LOG_UNCOND("Claim Received " << std::to_string(GenerateNodeStatusToUint())
-                    << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
+      //NS_LOG_UNCOND("Claim Received " << std::to_string(GenerateNodeStatusToUint())
+      //              << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
       HandleClaim(srcAddress);
     } else if(message.has_meeting()) {
       //clusterhead meeting, handle by sending number of connected nodes
@@ -460,8 +468,8 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //is broadcasted to all neighbors on the information table. A node recieving this
       //message must then ping all neighbors to figure out it's new node status.
       //stats.incReceived(Stats::Type::ClusterHeadResign);
-      // NS_LOG_UNCOND("CHResign Received " << std::to_string(GenerateNodeStatusToUint())
-      //               << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
+      NS_LOG_UNCOND("CHResign Received " << std::to_string(GenerateNodeStatusToUint())
+                     << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
       HandleCHResign(srcAddress,message.node_status());
     } else if(message.has_inquiry()) {
       //Happens when a node needs to learn it's neighbors' node types in order
@@ -654,6 +662,26 @@ uint8_t ecsClusterApp::GenerateNodeStatusToUint() {
   }
   return 0;
 }
+//Copy of function above but for a specific node in an information table.
+//Used for printing out the information table of a clusterhead claim
+uint8_t ecsClusterApp::NodeStatusToUintFromTable(Node_Status status) {
+  switch (status) {
+    case Node_Status::UNSPECIFIED:
+      return 0;
+    case Node_Status::CLUSTER_HEAD:
+      return 1;
+    case Node_Status::CLUSTER_MEMBER:
+      return 2;
+    case Node_Status::CLUSTER_GATEWAY:
+      return 3;
+    case Node_Status::STANDALONE:
+      return 4;
+    case Node_Status::CLUSTER_GUEST:
+      return 5;
+  }
+  return 0;
+}
+
 //Simple function to translate uint to node_status enum
 ecsClusterApp::Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status) {
   switch(status) {
@@ -733,12 +761,14 @@ void ecsClusterApp::CheckCHShouldResign() {
 
 void ecsClusterApp::CleanUp() { google::protobuf::ShutdownProtobufLibrary(); }
 
-// void ecsClusterApp::ScheduleClusterFormationWatchdog() {
-//   if(m_state != State::RUNNING) return;
-//   m_cluster_watchdog_event = Simulator::Schedule(m_peer_timeout, &ecsClusterApp::ClusterFormation, this);
-// }
-// void ecsClusterApp::ClusterFormation() {
-//   //TODO: Write cluster formation step. Incorporate all nodes to have their node status inside
-// }
+void ecsClusterApp::PrintCustomClusterTable() {
+  //m_informationTable[nodeID]
+  std::map<uint32_t, Node_Status>::iterator it;
+  NS_LOG_UNCOND("Printing custom cluster table for " << GetID() << " with size " << m_informationTable.size());
+  for(it = m_informationTable.begin(); it != m_informationTable.end(); it++) {
+    NS_LOG_UNCOND("asd " << it->first << " \t " << std::to_string(NodeStatusToUintFromTable(it->second)));
+  }
+
+}
 
 } //namespace ecs
