@@ -21,6 +21,7 @@
 #include "ns3/uinteger.h"
 
 #include "table.h"
+#include "ecs-stats.h"
 
 namespace ecs {
 
@@ -78,6 +79,7 @@ class ecsClusterApp : public Application {
     void SendToNodes(Ptr<Packet> message, const std::set<uint32_t> nodes);
 
     Ptr<Packet> GeneratePing(uint8_t node_status);
+    Ptr<Packet> GenerateStatus(uint8_t node_status);
     Ptr<Packet> GenerateClusterHeadClaim();
     Ptr<Packet> GenerateMeeting();
     Ptr<Packet> GenerateResponse(uint64_t responseTo);
@@ -111,6 +113,8 @@ class ecsClusterApp : public Application {
     void ScheduleInquiry();
     void ScheduleRefreshRoutingTable();
     void SchedulePrintInformationTable();
+    void ScheduleHeadPrintTable();
+    void ScheduleClusterHeadCount();
 
     void HandleRequest(Ptr<Socket> socket);
     void HandlePing(uint32_t nodeID, uint8_t node_status);
@@ -128,6 +132,8 @@ class ecsClusterApp : public Application {
     Node_Status GenerateStatusFromUint(uint8_t status);
     uint8_t NodeStatusToUintFromTable(Node_Status status);
     uint64_t GenerateMessageID();
+    std::string NodeStatusToStringFromTable(Node_Status status);
+
 
     void ScheduleClusterFormationWatchdog();
     void ClusterFormation();
@@ -149,7 +155,9 @@ class ecsClusterApp : public Application {
 
     Table m_peerTable;
 
-    // Stats stats;
+    bool m_CH_Claim_flag;
+
+    Stats stats;
 
 };
 }; //namespace ecs

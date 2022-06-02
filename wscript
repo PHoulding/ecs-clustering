@@ -13,6 +13,7 @@ def build(bld):
         'model/nsutil.cc',
         'model/table.cc',
         'model/logging.cc',
+        'model/ecs-stats.cc',
         'helper/ecs-clustering-helper.cc',
         'model/proto/messages.proto'
         ]
@@ -35,6 +36,8 @@ def build(bld):
         'model/table.h',
         'model/nsutil.h',
         'model/util.h',
+        'model/logging.h',
+        'model/ecs-stats.h',
         'helper/ecs-clustering-helper.h'
         ]
 

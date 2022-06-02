@@ -32,6 +32,7 @@
 #include "ns3/ecs-clustering-helper.h"
 #include "simulation-params.h"
 #include "ns3/ecs-clustering.h"
+#include "ns3/ecs-stats.h"
 
 using namespace ns3;
 using namespace ecs;
@@ -62,6 +63,9 @@ void setupTravellerNodes(const SimulationParameters& params, NodeContainer& node
   nodes.Add(travellers);
 }
 
+void resetStats(Stats stats) {
+  stats.Reset();
+}
 
 int
 main (int argc, char *argv[])
@@ -138,15 +142,18 @@ main (int argc, char *argv[])
   ecs.SetAttribute("WaitTime", TimeValue(params.waitTime));
 
   ApplicationContainer ecsApps = ecs.Install(allAdHocNodes);
-  if(params.staggeredStart) {
-    Ptr<NormalRandomVariable> jitter = CreateObject<NormalRandomVariable>();
-    jitter->SetAttribute("Mean", DoubleValue(0));
-    jitter->SetAttribute("Variance", DoubleValue(params.staggeredVariance));
-    ecsApps.StartWithJitter(Seconds(0), jitter);
-  } else {
-    ecsApps.Start(params.waitTime);
-  }
+  // if(params.staggeredStart) {
+  //   Ptr<NormalRandomVariable> jitter = CreateObject<NormalRandomVariable>();
+  //   jitter->SetAttribute("Mean", DoubleValue(0));
+  //   jitter->SetAttribute("Variance", DoubleValue(params.staggeredVariance));
+  //   ecsApps.StartWithJitter(Seconds(0), jitter);
+  // } else {
+    ecsApps.Start(Seconds(0));
+  //}
   ecsApps.Stop(params.runtime);
+
+  Stats stats;
+  Simulator::Schedule(params.waitTime, &resetStats, stats);
 
   NS_LOG_UNCOND("Running simulation for " << params.runtime.GetSeconds() << " seconds...");
   NS_LOG_UNCOND("params.runtime = " << params.runtime + 1.0_sec);
@@ -158,8 +165,15 @@ main (int argc, char *argv[])
   Simulator::Stop(params.runtime + 1.0_sec);
 
   Simulator::Run();
+  NS_LOG_UNCOND("test time @ " << Simulator::Now());
   Simulator::Destroy();
   NS_LOG_UNCOND("Done.");
+
+  //stats.PrintCHEvents();
+  //stats.PrintMembershipEvents();
+  stats.PrintClusterAverage(params.runtime.GetSeconds());
+  stats.OutputCHEventsToCSV(1);
+  stats.OutputMembershipToCSV(1);
 
   ecsClusterApp::CleanUp();
 

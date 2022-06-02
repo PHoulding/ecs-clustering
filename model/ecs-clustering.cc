@@ -116,7 +116,7 @@ void ecsClusterApp::StartApplication() {
   m_peerTable = Table(m_profileDelay.GetSeconds(), m_neighborhoodHops);
   m_state = State::RUNNING;
   m_node_status = Node_Status::UNSPECIFIED;
-  m_inquiry_timeout = ns3::Time::FromDouble(5.0, ns3::Time::Unit::S);
+  m_inquiry_timeout = 10.0_sec;//ns3::Time::FromDouble(5.0, ns3::Time::Unit::S);
 
 
   //Scheduling of events. Maybe this is where i put the algorithm??
@@ -124,9 +124,11 @@ void ecsClusterApp::StartApplication() {
   //SchedulePing();
   //NS_LOG_UNCOND("Ping Scheduled");
   ScheduleWakeup();
+  ScheduleClusterHeadCount();
   //SchedulePing();
   //ScheduleInquiry();
-  ScheduleRefreshRoutingTable();
+  //ScheduleHeadPrintTable();
+  //ScheduleRefreshRoutingTable();
   //ScheduleClusterFormationWatchdog();
 }
 //override
@@ -236,6 +238,16 @@ Ptr<Packet> ecsClusterApp::GeneratePing(uint8_t node_status) {
   return GeneratePacket(message);
 }
 
+Ptr<Packet> ecsClusterApp::GenerateStatus(uint8_t node_status) {
+  ecs::packets::Message message;
+  message.set_id(GenerateMessageID());
+  message.set_timestamp(Simulator::Now().GetMilliSeconds());
+  message.set_node_status(node_status);
+
+  message.mutable_status();
+  return GeneratePacket(message);
+}
+
 Ptr<Packet> ecsClusterApp::GenerateClusterHeadClaim() {
   ecs::packets::Message message;
   message.set_id(GenerateMessageID());
@@ -329,16 +341,18 @@ void ecsClusterApp::SendClusterHeadClaim() {
   SetStatus(Node_Status::CLUSTER_HEAD);
   Ptr<Packet> message = GenerateClusterHeadClaim();
   BroadcastToNeighbors(message);
-  NS_LOG_UNCOND("CH Claim Sent from " << GetID() <<"\n");
-  SchedulePrintInformationTable();
+  m_CH_Claim_flag = true;
+  stats.recordCHClaim(m_address, Simulator::Now().GetSeconds());
+  //NS_LOG_UNCOND("CH Claim Sent from " << GetID() << " at " << Simulator::Now());
+  //SchedulePrintInformationTable();
   //PrintCustomClusterTable();
   //NS_LOG_UNCOND("CH Claim Sent! \n" << GetRoutingTableString());
 }
 
 void ecsClusterApp::SendStatus(uint32_t nodeID) {
-  Ptr<Packet> message = GeneratePing(GenerateNodeStatusToUint());
+  Ptr<Packet> message = GenerateStatus(GenerateNodeStatusToUint());
   SendMessage(Ipv4Address(nodeID), message);
-  //NS_LOG_UNCOND("Status Sent!");
+  //NS_LOG_UNCOND("Status Sent to " << nodeID);
 }
 void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
   Ptr<Packet> message = GenerateMeeting();
@@ -348,7 +362,12 @@ void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
 void ecsClusterApp::SendResign(uint8_t node_status) {
   Ptr<Packet> message = GenerateResign(node_status);
   BroadcastToNeighbors(message);
-  NS_LOG_UNCOND("Resign Sent!");
+  if (m_CH_Claim_flag) {
+    //NS_LOG_UNCOND("recording CH resign");
+    stats.recordCHResign(m_address, Simulator::Now().GetSeconds());
+    m_CH_Claim_flag = false;
+  }
+  //NS_LOG_UNCOND("Resign Sent from " << GetID());
 }
 void ecsClusterApp::SendInquiry() {
   Ptr<Packet> message = GenerateInquiry();
@@ -363,6 +382,7 @@ void ecsClusterApp::SchedulePing() {
   if(m_state != State::RUNNING) return;
   SendPing(GenerateNodeStatusToUint());
   m_ping_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::SchedulePing, this);
+  //NS_LOG_UNCOND("Ping Scheduled " << GetID());
 }
 
 void ecsClusterApp::ScheduleWakeup() {
@@ -370,30 +390,67 @@ void ecsClusterApp::ScheduleWakeup() {
   if(m_node_status != Node_Status::UNSPECIFIED) return;
   //SendClusterHeadClaim();
   //SetStatus(Node_Status::CLUSTER_HEAD);
-
+  //NS_LOG_UNCOND("Wakeup Scheduled @ " << Simulator::Now() << " for " << GetID());
   Ptr<UniformRandomVariable> standoff = CreateObject<UniformRandomVariable> ();
   standoff->SetAttribute("Min", DoubleValue(m_waitTime.GetSeconds()));
-  standoff->SetAttribute("Min", DoubleValue(m_standoff_time.GetSeconds()));
+  standoff->SetAttribute("Max", DoubleValue(m_standoff_time.GetSeconds()));
   random_m_standoff_time = ns3::Time::FromDouble(standoff->GetValue(), ns3::Time::Unit::S);
+  //NS_LOG_UNCOND("standoff: " << random_m_standoff_time.GetSeconds());
   m_CH_claim_event = Simulator::Schedule(random_m_standoff_time, &ecsClusterApp::SendClusterHeadClaim, this);
+
+  //remaking schedules
+  m_inquiry_event = Simulator::Schedule(random_m_standoff_time+5.0_sec, &ecsClusterApp::ScheduleInquiry, this);
 }
 
 void ecsClusterApp::ScheduleInquiry() {
   if(m_state != State::RUNNING) return;
+  RefreshRoutingTable();
+  RefreshInformationTable();
   SendInquiry();
 
   m_inquiry_event = Simulator::Schedule(m_inquiry_timeout, &ecsClusterApp::ScheduleInquiry, this);
-
+  if(GetStatus() == Node_Status::CLUSTER_HEAD) {
+    //NS_LOG_UNCOND("Inquiry trigger for CH " << GetID() << " at " << Simulator::Now().GetSeconds());
+    m_check_CHResign_event = Simulator::Schedule(3.0_sec, &ecsClusterApp::CheckCHShouldResign, this);
+  }
 }
+
+void ecsClusterApp::ScheduleClusterHeadCount() {
+  if(m_state != State::RUNNING) return;
+  if(Simulator::Now().GetSeconds() > 59) {
+    if(GetStatus() == Node_Status::CLUSTER_HEAD) {
+      stats.IncreaseCHCount();
+    }
+  }
+  Simulator::Schedule(60.0_sec, &ecsClusterApp::ScheduleClusterHeadCount, this);
+}
+
+//old schedule
+// void ecsClusterApp::ScheduleInquiry() {
+//   if(m_state != State::RUNNING) return;
+//   //Refresh both information table and routing table. RefreshInformationTable
+//   RefreshRoutingTable();
+//   RefreshInformationTable();
+//   //Send inquiry message to ask for neighboring node statii
+//   SendInquiry();
+
+//   //NS_LOG_UNCOND("Inquiry Scheduled @ " << Simulator::Now() << " in " << m_inquiry_timeout.GetSeconds() << " from " << GetID());
+//   m_inquiry_event = Simulator::Schedule(m_inquiry_timeout, &ecsClusterApp::ScheduleInquiry, this);
+
+//   //Check if CH should resign from not enough nodes/unneeded cluster head
+//   if(Simulator::Now().GetSeconds() > m_standoff_time.GetSeconds() && GetStatus()==Node_Status::CLUSTER_HEAD) {
+//     NS_LOG_UNCOND("Inquiry trigger check resign for " << GetID() << " at " << Simulator::Now().GetSeconds() << " SOT: " << m_standoff_time.GetSeconds());
+//     m_check_CHResign_event = Simulator::Schedule(4.0_sec, &ecsClusterApp::CheckCHShouldResign, this);
+//   }
+// }
 
 void ecsClusterApp::ScheduleClusterHeadClaim() {
   if(m_state != State::RUNNING) return;
-
+  //SetStatus(Node_Status::CLUSTER_HEAD);
   SendClusterHeadClaim();
-  SetStatus(Node_Status::CLUSTER_HEAD);
   //m_node_status = CLUSTER_HEAD;
-
-  m_CH_claim_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::ScheduleClusterHeadClaim, this);
+  //NS_LOG_UNCOND("CH Claim Scheduled @ " << Simulator::Now() << " for " << GetID());
+  //m_CH_claim_event = Simulator::Schedule(m_profileDelay, &ecsClusterApp::ScheduleClusterHeadClaim, this);
 }
 
 void ecsClusterApp::ScheduleRefreshRoutingTable() {
@@ -401,9 +458,10 @@ void ecsClusterApp::ScheduleRefreshRoutingTable() {
 
   RefreshRoutingTable();
   RefreshInformationTable();
-
+  //NS_LOG_UNCOND("Refresh Scheduled @ " << Simulator::Now() << " for " << GetID());
   if(GetStatus()==Node_Status::CLUSTER_HEAD) {
-    m_check_CHResign_event = Simulator::Schedule(Simulator::Now()+3.0_sec, &ecsClusterApp::CheckCHShouldResign, this);
+    //NS_LOG_UNCOND("Refresh table trigger check resign for " << GetID());
+    m_check_CHResign_event = Simulator::Schedule(3.0_sec, &ecsClusterApp::CheckCHShouldResign, this);
   }
 
   m_table_update_event =
@@ -411,9 +469,19 @@ void ecsClusterApp::ScheduleRefreshRoutingTable() {
 }
 // Scheduled event to print information table 3 seconds after clusterhead claim
 void ecsClusterApp::SchedulePrintInformationTable() {
+  //NS_LOG_UNCOND("Print table Scheduled @ " << Simulator::Now() << " for " << GetID());
   m_print_table_event =
-      Simulator::Schedule(Simulator::Now()+1.0_sec, &ecsClusterApp::PrintCustomClusterTable, this);
+      Simulator::Schedule(1.0_sec, &ecsClusterApp::PrintCustomClusterTable, this);
 }
+// Scheduled event for clusterheads to print information table every X seconds
+void ecsClusterApp::ScheduleHeadPrintTable() {
+  if(GetStatus()==Node_Status::CLUSTER_HEAD) {
+    //NS_LOG_UNCOND("Printing table for Cluster Head " << GetID());
+    PrintCustomClusterTable();
+  }
+  Simulator::Schedule(10.0_sec, &ecsClusterApp::ScheduleHeadPrintTable, this);
+}
+
 //TODO: add more scheduled events????
 
 /**
@@ -437,7 +505,6 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
 
     if(CheckDuplicateMessage(message.id())) {
       NS_LOG_INFO("already recieved this message, dropping.");
-    //  stats.incDuplicate();
       return;
     }
     // std::string s;
@@ -445,20 +512,17 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
     // std::cout << s;
     if(message.has_ping()) {
       //ping received
-      //stats.incReceived(Stats::Type::PING);
       //NS_LOG_UNCOND("Ping Received " << std::to_string(GenerateNodeStatusToUint())
       //              << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
       HandlePing(srcAddress, message.node_status());
     } else if(message.has_claim()) {
       //CH claim received
-      //stats.incReceived(Stats::Type::Claim);
       //NS_LOG_UNCOND("Claim Received " << std::to_string(GenerateNodeStatusToUint())
       //              << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
       HandleClaim(srcAddress);
     } else if(message.has_meeting()) {
       //clusterhead meeting, handle by sending number of connected nodes
       //(i.e. information table size) to other. if less table size, resign
-      //stats.incReceived(Stats::Type::ClusterHeadMeeting);
       // NS_LOG_UNCOND("Meeting Received " << std::to_string(GenerateNodeStatusToUint())
       //               << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
       HandleMeeting(srcAddress,message.node_status(),message.meeting().tablesize());
@@ -467,26 +531,22 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //has a smaller information table, thus causing it to resign. This message
       //is broadcasted to all neighbors on the information table. A node recieving this
       //message must then ping all neighbors to figure out it's new node status.
-      //stats.incReceived(Stats::Type::ClusterHeadResign);
-      NS_LOG_UNCOND("CHResign Received " << std::to_string(GenerateNodeStatusToUint())
-                     << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
+      //NS_LOG_UNCOND("CHResign Received - " << NodeStatusToStringFromTable(m_node_status)
+      //               << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
       HandleCHResign(srcAddress,message.node_status());
     } else if(message.has_inquiry()) {
       //Happens when a node needs to learn it's neighbors' node types in order
       //to decide it's own
-      //stats.incReceived(Stats::Type::NeighborhoodInquiry);
       // NS_LOG_UNCOND("Inquiry Received " << std::to_string(GenerateNodeStatusToUint())
       //               << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
       HandleInquiry(srcAddress,message.node_status());
     } else if(message.has_status()) {
       //Simple message relaying a given node's node_status to another node.
       //Sent when a clusterhead claim is received during cluster formation
-    //  stats.incReceived(Stats::Type::StatusRelay);
-      // NS_LOG_UNCOND("Status Received " << std::to_string(GenerateNodeStatusToUint())
+      //NS_LOG_UNCOND("Status Received " << std::to_string(GenerateNodeStatusToUint())
       //               << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
       HandleStatus(srcAddress,message.node_status());
     } else {
-    //  stats.incReceived(Stats::Type::UKNOWN);
       std::cout << "handling message: other\n";
       NS_LOG_WARN("Unknown message type");
     }
@@ -506,10 +566,12 @@ void ecsClusterApp::HandlePing(uint32_t nodeID, uint8_t node_status) {
     //m_node_status = CLUSTER_GATEWAY;
     SetStatus(Node_Status::CLUSTER_GATEWAY);
     SendStatus(nodeID);
+    stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
   } else if(node_status && GetStatus()==Node_Status::CLUSTER_GUEST) {
     SetStatus(Node_Status::CLUSTER_MEMBER);
     //m_node_status = CLUSTER_MEMBER;
     SendStatus(nodeID);
+    stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
   }
 }
 //Handles another node sending a clusterhead claim. Follows the algorithm from the paper
@@ -519,17 +581,18 @@ void ecsClusterApp::HandleClaim(uint32_t nodeID) {
   //NS_LOG_UNCOND("standoffTime for " << GetID() << " is " << m_standoff_time << " NStime= " << Simulator::Now());
   if(Simulator::Now() < m_standoff_time) {
     //NS_LOG_UNCOND("Canceling CH claim for " << GetID());
+    //NS_LOG_UNCOND("Claim recieved, cancelling Claim event for " << GetID() << "(pre-standoff time!)");
     m_CH_claim_event.Cancel();
     switch (GetStatus()) {
       case Node_Status::UNSPECIFIED:
         SetStatus(Node_Status::CLUSTER_MEMBER);
-        //m_node_status = CLUSTER_MEMBER;
         SendStatus(nodeID);
+        stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
         break;
       case Node_Status::CLUSTER_MEMBER:
-        //m_node_status = CLUSTER_GATEWAY;
         SetStatus(Node_Status::CLUSTER_GATEWAY);
         SendStatus(nodeID);
+        stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
         break;
       default:
         SendStatus(nodeID);
@@ -538,22 +601,24 @@ void ecsClusterApp::HandleClaim(uint32_t nodeID) {
     //should theoretically be no way a cluster head receives this message??
     //Also no real need to adjust a cluster gateway if it already exists as one
     //    - maybe just send back status as a default
+    m_CH_claim_event.Cancel();
+    //NS_LOG_UNCOND("Claim recieved, cancelling Claim event for " << GetID());
     switch (GetStatus()) {
       case Node_Status::CLUSTER_MEMBER:
-        //m_node_status = CLUSTER_GATEWAY;
         SetStatus(Node_Status::CLUSTER_GATEWAY);
         SendPing(GenerateNodeStatusToUint());
+        stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
         break;
       case Node_Status::STANDALONE:
-        //m_node_status = CLUSTER_MEMBER;
         SetStatus(Node_Status::CLUSTER_MEMBER);
         m_informationTable[nodeID] = m_node_status;
         SendPing(GenerateNodeStatusToUint());
+        stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
         break;
       case Node_Status::CLUSTER_GUEST:
-        //m_node_status = CLUSTER_MEMBER;
         SetStatus(Node_Status::CLUSTER_MEMBER);
         SendPing(nodeID);
+        stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
         break;
       default:
         SendStatus(nodeID);
@@ -566,8 +631,9 @@ void ecsClusterApp::HandleResponse(uint32_t nodeID, uint8_t node_status) {
 }
 //Handles ClusterHeadMeeting messaage received
 void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size) {
-  NS_LOG_UNCOND("size " << m_informationTable.size() << " for " << GetID());
-  NS_LOG_UNCOND("size " << neighborhood_size << " for " << nodeID);
+  //NS_LOG_UNCOND("CH MEETING");
+  //NS_LOG_UNCOND("size " << m_informationTable.size() << " for " << GetID());
+  //NS_LOG_UNCOND("size " << neighborhood_size << " for " << nodeID);
   if(GetStatus()!=Node_Status::CLUSTER_HEAD) {
     NS_LOG_ERROR("ClusterHead meeting sent to node which isnt a cluster head");
     return;
@@ -580,9 +646,9 @@ void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t
     SendResign(GenerateNodeStatusToUint());
     //Change my ns to member
     SetStatus(Node_Status::CLUSTER_MEMBER);
-    //m_node_status = CLUSTER_MEMBER;
     //Send Status to original node
     SendPing(nodeID);
+    stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
   } else if(neighborhood_size < m_informationTable.size()) {
     //Send CHmeeting back to original with my size
     SendCHMeeting(nodeID);
@@ -594,24 +660,48 @@ void ecsClusterApp::HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t
 void ecsClusterApp::HandleCHResign(uint32_t nodeID, uint8_t node_status) {
   m_informationTable[nodeID] = GenerateStatusFromUint(node_status);
 
-  //if gateway, check for
+  //if gateway, check for number of CHs
   if(m_node_status == Node_Status::CLUSTER_GATEWAY) {
     std::map<uint32_t, Node_Status>::iterator it;
+    std::list<uint32_t> ch_IDs;
     int num_CHs = 0;
+    int num_mems = 0;
     for (it = m_informationTable.begin(); it != m_informationTable.end(); it++) {
       if(it->second == Node_Status::CLUSTER_HEAD) {
         num_CHs+=1;
+        ch_IDs.push_back(it->first);
+      } else if(it->second == Node_Status::CLUSTER_MEMBER || it-> second == Node_Status::CLUSTER_GATEWAY) {
+        num_mems+=1;
       }
     }
-    if(num_CHs<2) {
-      m_node_status = Node_Status::CLUSTER_MEMBER;
+    // If 1 CH, change to CM
+    if(num_CHs == 1) {
+      SetStatus(Node_Status::CLUSTER_MEMBER);
       SendPing(GenerateNodeStatusToUint());
+      stats.recordMembershipEnd(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
+      stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), ch_IDs.front());
+    } else if(num_CHs == 0 && num_mems>0) {
+      SetStatus(Node_Status::CLUSTER_GUEST);
+      SendPing(GenerateNodeStatusToUint());
+      stats.recordMembershipEnd(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
+    } else if(num_CHs > 1) {
+      SetStatus(Node_Status::CLUSTER_GATEWAY);
+      SendPing(GenerateNodeStatusToUint());
+      stats.recordMembershipEnd(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), nodeID);
+      std::list<uint32_t>:: iterator chIterator;
+      for(chIterator = ch_IDs.begin(); chIterator != ch_IDs.end(); chIterator++) {
+        stats.recordMembershipStart(NodeStatusToStringFromTable(m_node_status), m_address, Simulator::Now().GetSeconds(), *chIterator);
+      }
+      
     }
+    
+    //Should be absolutely no way that there are no CHs or members/gateways to connect to at this point
   }
 
   //Possibly queue new CH formation??
   if(m_node_status != Node_Status::CLUSTER_HEAD) {
     //iterate through information table, if any heads, break, otherwise send CH claim
+    //NS_LOG_UNCOND("RESIGN HANDLE - CHECKING FOR CH IN INFORMATION TABLE");
     std::map<uint32_t, Node_Status>::iterator it;
     bool checkForCH = true;
     for (it = m_informationTable.begin(); it != m_informationTable.end(); it++) {
@@ -621,10 +711,17 @@ void ecsClusterApp::HandleCHResign(uint32_t nodeID, uint8_t node_status) {
       }
     }
     if(checkForCH) {
-      SendClusterHeadClaim();
+      //Should be cancellable now that it is an event
+      Ptr<UniformRandomVariable> standoff = CreateObject<UniformRandomVariable> ();
+      standoff->SetAttribute("Min", DoubleValue(0.1));
+      standoff->SetAttribute("Max", DoubleValue(0.5));
+      random_m_standoff_time = ns3::Time::FromDouble(standoff->GetValue(), ns3::Time::Unit::S);
+      //NS_LOG_UNCOND("Scheduling CH claim event in " << random_m_standoff_time.GetSeconds() << " sec for " << GetID());
+      m_CH_claim_event = Simulator::Schedule(0.5_sec, &ecsClusterApp::ScheduleClusterHeadClaim, this);
     }
   }
 }
+
 //Handles neighborhood inquiry from another node and updates this node's information table
 //Sent from standalones and CHs
 void ecsClusterApp::HandleInquiry(uint32_t nodeID, uint8_t node_status) {
@@ -634,6 +731,12 @@ void ecsClusterApp::HandleInquiry(uint32_t nodeID, uint8_t node_status) {
 //Handles status message from neighbor in response to clusterhead claim during standoff
 void ecsClusterApp::HandleStatus(uint32_t nodeID, uint8_t node_status) {
   m_informationTable[nodeID] = GenerateStatusFromUint(node_status);
+  if (m_CH_Claim_flag) {
+    //NS_LOG_UNCOND("recording status recieve");
+    stats.recordCHRecieveStatus(m_address, Simulator::Now().GetSeconds());
+  }
+  //NS_LOG_UNCOND("!!!!!!!!!!!HANDLE STATUS!!!!!!!!!!!");
+  //PrintCustomClusterTable();
 }
 
 bool ecsClusterApp::CheckDuplicateMessage(uint64_t messageID) {
@@ -682,6 +785,24 @@ uint8_t ecsClusterApp::NodeStatusToUintFromTable(Node_Status status) {
   return 0;
 }
 
+std::string ecsClusterApp::NodeStatusToStringFromTable(Node_Status status) {
+  switch (status) {
+    case Node_Status::UNSPECIFIED:
+      return "Unspecified";
+    case Node_Status::CLUSTER_HEAD:
+      return "Cluster Head";
+    case Node_Status::CLUSTER_MEMBER:
+      return "Cluster Member";
+    case Node_Status::CLUSTER_GATEWAY:
+      return "Cluster Gateway";
+    case Node_Status::STANDALONE:
+      return "Standalone";
+    case Node_Status::CLUSTER_GUEST:
+      return "Cluster Guest";
+  }
+  return "0";
+}
+
 //Simple function to translate uint to node_status enum
 ecsClusterApp::Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status) {
   switch(status) {
@@ -702,6 +823,8 @@ ecsClusterApp::Node_Status ecsClusterApp::GenerateStatusFromUint(uint8_t status)
   }
   return Node_Status::UNSPECIFIED;
 }
+
+
 // this will generate the ID value to use for the requests this is a static function that should be
 // called to generate all the ids to ensure they are unique
 uint64_t ecsClusterApp::GenerateMessageID() {
@@ -726,7 +849,6 @@ void ecsClusterApp::RefreshRoutingTable() {
 
 void ecsClusterApp::RefreshInformationTable() {
   m_informationTable.clear();
-  SendInquiry();
 }
 
 void ecsClusterApp::CancelEventMap(std::map<uint32_t, EventId> events) {
@@ -739,12 +861,20 @@ void ecsClusterApp::CancelEventMap(std::map<uint64_t, EventId> events) {
     it->second.Cancel();
   }
 }
+/**
+ * @brief 
+ * If a CH has more than 5 nodes, then they deserve to stand as a CH in order to translate information as needed
+ */
+
 void ecsClusterApp::CheckCHShouldResign() {
   //information table = empty
   bool can_resign = false;
   if(m_informationTable.size()<1) {
-    m_node_status = Node_Status::STANDALONE;
-  } else if(m_informationTable.size()<=5) {
+    //m_node_status = Node_Status::STANDALONE;
+    SetStatus(Node_Status::STANDALONE);
+  } else if(m_informationTable.size()+1<=5) {
+    // <= 5 here seems suuuuuuper high for a network. Would like to check on higher/lower numbers to see impact
+    // +1 because informationTable does not track self
     for(auto it = m_informationTable.begin(); it!= m_informationTable.end(); ++it) {
       if(it->second == Node_Status::CLUSTER_GATEWAY) {
         //If there is a cluster gateway to another cluster, I can resign and become a clusterguest through them!
@@ -753,6 +883,8 @@ void ecsClusterApp::CheckCHShouldResign() {
       }
     }
     if(can_resign) {
+      //NS_LOG_UNCOND("\nResign sent from information table <=5 & gateway from " << GetID());
+      //PrintCustomClusterTable();
       m_node_status = Node_Status::CLUSTER_GUEST;
       SendResign(GenerateNodeStatusToUint());
     }
@@ -762,12 +894,14 @@ void ecsClusterApp::CheckCHShouldResign() {
 void ecsClusterApp::CleanUp() { google::protobuf::ShutdownProtobufLibrary(); }
 
 void ecsClusterApp::PrintCustomClusterTable() {
-  //m_informationTable[nodeID]
+  //m_informationTable[nodeID]s
   std::map<uint32_t, Node_Status>::iterator it;
-  NS_LOG_UNCOND("Printing custom cluster table for " << GetID() << " with size " << m_informationTable.size());
-  for(it = m_informationTable.begin(); it != m_informationTable.end(); it++) {
-    NS_LOG_UNCOND("asd " << it->first << " \t " << std::to_string(NodeStatusToUintFromTable(it->second)));
+  NS_LOG_UNCOND("Printing custom cluster table for " << GetID() << " with size " << m_informationTable.size() << " at " << Simulator::Now().GetSeconds());
+  NS_LOG_UNCOND(GetID() << " \t " << NodeStatusToStringFromTable(m_node_status));
+  for(it = m_informationTable.begin(); it != m_informationTable.end(); ++it) {
+    NS_LOG_UNCOND(it->first << " \t " << NodeStatusToStringFromTable(it->second) << " \t " << (int)NodeStatusToUintFromTable(it->second));
   }
+  NS_LOG_UNCOND("\n");
 
 }
 
