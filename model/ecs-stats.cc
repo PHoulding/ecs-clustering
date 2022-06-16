@@ -24,7 +24,14 @@
 static std::list<CH_Event> CH_Event_List;
 static std::list<Member_Event> Membership_List;
 static uint64_t numClusterHeads;
-static uint64_t avgClusterHeadCount;
+static uint64_t numClusterMembers;
+static uint64_t numClusterGateways;
+static uint64_t numClusterGuests;
+static uint64_t numClusterSize;
+static uint64_t numHeadsCoveringGates;
+static uint64_t numAccessPoints;
+static uint64_t numClusteringMessages;
+static uint64_t numClusterChangeMessages;
 
 
 namespace ecs {
@@ -45,21 +52,76 @@ void Stats::Reset() {
   CH_Event_List.clear();
   Membership_List.clear();
   numClusterHeads = 0;
+  numClusterMembers = 0;
+  numClusterGateways = 0;
+  numClusterGuests = 0;
+  numClusterSize = 0;
+  numHeadsCoveringGates = 0;
+  numAccessPoints = 0;
+  numClusterChangeMessages = 0;
+  numClusteringMessages = 0;
 }
 
-void Stats::IncreaseAverageClusterHeadCount() {
-  avgClusterHeadCount += numClusterHeads;
+void Stats::IncreaseClusterChangeMessages() {
+  numClusterChangeMessages++;
 }
 
+void Stats::IncreaseClusteringMessages() {
+  numClusteringMessages++;
+}
+
+void Stats::IncreaseClusterSizeCount(uint64_t cluster_size) {
+  numClusterSize += cluster_size;
+}
 void Stats::IncreaseCHCount() {
   numClusterHeads++;
 }
 void Stats::DecreaseCHCount() {
   numClusterHeads--;
 }
+void Stats::IncreaseCMemCount() {
+  numClusterMembers++;
+}
+void Stats::IncreaseGateCount() {
+  numClusterGateways++;
+}
+void Stats::IncreaseGuestCount() {
+  numClusterGuests++;
+}
+void Stats::IncreaseGateCoverageCount(uint64_t num_heads_covering) {
+  numHeadsCoveringGates+=num_heads_covering;
+}
+void Stats::IncreaseAccessPointCount(uint64_t num_access_points) {
+  numAccessPoints+=num_access_points;
+}
+
+double Stats::CalculateAverageClusterSize(double runtime) {
+  // a = #clusters (cluster heads), b = #cluster members
+  //double a_b = (numClusterHeads/(runtime/60) + numClusterMembers/(runtime/60));
+  double a_b = numClusterHeads + numClusterMembers;
+  // ni = # clusterheads that cover a cluster gateway
+  //double n_i = numHeadsCoveringGates/(runtime/60);
+  double n_i = numHeadsCoveringGates;
+  // mj = # access points that a guest is connected to
+  //double m_j = numAccessPoints/(runtime/60);
+  double m_j = numAccessPoints;
+  double numerator = a_b + n_i + m_j;
+  //double avgClSize = numerator/(numClusterHeads/(runtime/60));
+  double avgClSize = numerator/(numClusterHeads);
+  return avgClSize;
+}
+
 void Stats::PrintClusterAverage(double runtime) {
   std::cout << "Number of clusters at finish: " << numClusterHeads << " runtime: " << runtime << "\n";
-  std::cout << "Average Number of Clusters: " << numClusterHeads/(runtime/60) << " in time " << runtime << "\n";
+  std::cout << "Average Number of Clusters: " << numClusterHeads/(runtime/60) << "\n";
+  std::cout << "Average Cluster Size (table): " << numClusterSize/(runtime/60) << "\n";
+  std::cout << "Average Cluster Members: " << numClusterMembers/(runtime/60) << "\n";
+  std::cout << "Average Cluster Gateways: " << numClusterGateways/(runtime/60) << "\n";
+  std::cout << "Average Cluster Guests: " << numClusterGuests/(runtime/60) << "\n";
+  double avgClSizeFormula = CalculateAverageClusterSize(runtime);
+  std::cout << "Average Cluster Size (formula): " << avgClSizeFormula << "\n";
+  std::cout << "Number of Cluster change messages: " << numClusterChangeMessages << "\n";
+  std::cout << "Total clustering messages: " << numClusteringMessages << "\n";
 }
 
 void Stats::PrintCHEvents() {

@@ -124,7 +124,8 @@ void ecsClusterApp::StartApplication() {
   //SchedulePing();
   //NS_LOG_UNCOND("Ping Scheduled");
   ScheduleWakeup();
-  ScheduleClusterHeadCount();
+  Simulator::Schedule(57.0_sec, &ecsClusterApp::ScheduleAverageRecording, this);
+  //ScheduleAverageRecording();
   //SchedulePing();
   //ScheduleInquiry();
   //ScheduleHeadPrintTable();
@@ -343,6 +344,8 @@ void ecsClusterApp::SendClusterHeadClaim() {
   BroadcastToNeighbors(message);
   m_CH_Claim_flag = true;
   stats.recordCHClaim(m_address, Simulator::Now().GetSeconds());
+  stats.IncreaseClusteringMessages();
+  stats.IncreaseClusterChangeMessages();
   //NS_LOG_UNCOND("CH Claim Sent from " << GetID() << " at " << Simulator::Now());
   //SchedulePrintInformationTable();
   //PrintCustomClusterTable();
@@ -357,11 +360,15 @@ void ecsClusterApp::SendStatus(uint32_t nodeID) {
 void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
   Ptr<Packet> message = GenerateMeeting();
   SendMessage(Ipv4Address(nodeID), message);
+  stats.IncreaseClusteringMessages();
+  stats.IncreaseClusterChangeMessages();
   NS_LOG_UNCOND("CH Meeting Sent!");
 }
 void ecsClusterApp::SendResign(uint8_t node_status) {
   Ptr<Packet> message = GenerateResign(node_status);
   BroadcastToNeighbors(message);
+  stats.IncreaseClusteringMessages();
+  stats.IncreaseClusterChangeMessages();
   if (m_CH_Claim_flag) {
     //NS_LOG_UNCOND("recording CH resign");
     stats.recordCHResign(m_address, Simulator::Now().GetSeconds());
@@ -372,6 +379,7 @@ void ecsClusterApp::SendResign(uint8_t node_status) {
 void ecsClusterApp::SendInquiry() {
   Ptr<Packet> message = GenerateInquiry();
   BroadcastToNeighbors(message);
+  stats.IncreaseClusteringMessages();
 //  NS_LOG_UNCOND("Inquiry sent");
 }
 
@@ -415,14 +423,26 @@ void ecsClusterApp::ScheduleInquiry() {
   }
 }
 
-void ecsClusterApp::ScheduleClusterHeadCount() {
+void ecsClusterApp::ScheduleAverageRecording() {
   if(m_state != State::RUNNING) return;
-  if(Simulator::Now().GetSeconds() > 59) {
+  if(Simulator::Now().GetSeconds() > 55) {
+    //Simulator::Schedule(10.0_sec, &ecsClusterApp::ScheduleAverageResets, this);
     if(GetStatus() == Node_Status::CLUSTER_HEAD) {
       stats.IncreaseCHCount();
+      stats.IncreaseClusterSizeCount(m_informationTable.size());
+    } else if(GetStatus() == Node_Status::CLUSTER_MEMBER) {
+      stats.IncreaseCMemCount();
+    } else if(GetStatus() == Node_Status::CLUSTER_GATEWAY) {
+      stats.IncreaseGateCount();
+      uint64_t num_heads_covering = GetNumHeadsCovering();
+      stats.IncreaseGateCoverageCount(num_heads_covering);
+    } else if(GetStatus() == Node_Status::CLUSTER_GUEST) {
+      stats.IncreaseGuestCount();
+      uint64_t num_access_points = GetNumAccessPoints();
+      stats.IncreaseAccessPointCount(num_access_points);
     }
   }
-  Simulator::Schedule(60.0_sec, &ecsClusterApp::ScheduleClusterHeadCount, this);
+  Simulator::Schedule(60.0_sec, &ecsClusterApp::ScheduleAverageRecording, this);
 }
 
 //old schedule
@@ -889,6 +909,25 @@ void ecsClusterApp::CheckCHShouldResign() {
       SendResign(GenerateNodeStatusToUint());
     }
   }
+}
+
+uint64_t ecsClusterApp::GetNumHeadsCovering() {
+  uint64_t num_heads_covering=0;
+  for(auto it = m_informationTable.begin(); it!=m_informationTable.end(); ++it) {
+    if(it->second == Node_Status::CLUSTER_HEAD) {
+      num_heads_covering++;
+    }
+  }
+  return num_heads_covering;
+}
+uint64_t ecsClusterApp::GetNumAccessPoints() {
+  uint64_t num_access_points=0;
+  for(auto it = m_informationTable.begin(); it!=m_informationTable.end(); ++it) {
+    if(it->second == Node_Status::CLUSTER_MEMBER || it->second == Node_Status::CLUSTER_GATEWAY) {
+      num_access_points++;
+    }
+  }
+  return num_access_points;
 }
 
 void ecsClusterApp::CleanUp() { google::protobuf::ShutdownProtobufLibrary(); }

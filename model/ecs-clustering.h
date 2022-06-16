@@ -114,7 +114,7 @@ class ecsClusterApp : public Application {
     void ScheduleRefreshRoutingTable();
     void SchedulePrintInformationTable();
     void ScheduleHeadPrintTable();
-    void ScheduleClusterHeadCount();
+    void ScheduleAverageRecording();
 
     void HandleRequest(Ptr<Socket> socket);
     void HandlePing(uint32_t nodeID, uint8_t node_status);
@@ -142,6 +142,8 @@ class ecsClusterApp : public Application {
     void RefreshRoutingTable();
     void RefreshInformationTable();
     void CheckCHShouldResign();
+    uint64_t GetNumHeadsCovering();
+    uint64_t GetNumAccessPoints();
 
     void CancelEventMap(std::map<uint64_t, EventId> events);
     void CancelEventMap(std::map<uint32_t, EventId> events);

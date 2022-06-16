@@ -93,8 +93,10 @@ main (int argc, char *argv[])
   NS_LOG_UNCOND("Setting up wireless devices for all nodes...");
   YansWifiPhyHelper wifiPhy = YansWifiPhyHelper();
   wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
+  // wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
+  // wifiPhy.EnablePcap("ecs-out", allAdHocNodes);
 
-  auto wifiChannel = YansWifiChannelHelper();
+  auto wifiChannel = YansWifiChannelHelper::Default();
   wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
 
 
@@ -117,7 +119,8 @@ main (int argc, char *argv[])
   wifi.SetStandard(WIFI_STANDARD_80211b);
 
   NS_LOG_UNCOND("Assigning MAC addresses in ad hoc mode...");
-  auto adhocDevices = wifi.Install(wifiPhy, wifiMac, allAdHocNodes);
+  //auto adhocDevices = wifi.Install(wifiPhy, wifiMac, allAdHocNodes);
+  NetDeviceContainer adhocDevices = wifi.Install(wifiPhy, wifiMac, allAdHocNodes);
 
   NS_LOG_UNCOND("Setting up Internet stacks...");
   InternetStackHelper internet;
@@ -148,7 +151,7 @@ main (int argc, char *argv[])
   //   jitter->SetAttribute("Variance", DoubleValue(params.staggeredVariance));
   //   ecsApps.StartWithJitter(Seconds(0), jitter);
   // } else {
-    ecsApps.Start(Seconds(0));
+  ecsApps.Start(Seconds(0));
   //}
   ecsApps.Stop(params.runtime);
 
@@ -159,19 +162,24 @@ main (int argc, char *argv[])
   NS_LOG_UNCOND("params.runtime = " << params.runtime + 1.0_sec);
   NS_LOG_UNCOND("Max running time is " << Simulator::GetMaximumSimulationTime());
   NS_LOG_UNCOND("With " << params.totalNodes << " nodes");
-  wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
-  wifiPhy.EnablePcap("ecs-out", allAdHocNodes);
+
+  std::cout << "Running simulation for " << params.runtime.GetSeconds() << " seconds...\n";
+  std::cout << "params.runtime = " << params.runtime + 1.0_sec << "\n";
+  std::cout << "Max running time is " << Simulator::GetMaximumSimulationTime() << "\n";
+  std::cout << "With "  << params.totalNodes << " nodes\n";
 
   Simulator::Stop(params.runtime + 1.0_sec);
 
   Simulator::Run();
   NS_LOG_UNCOND("test time @ " << Simulator::Now());
+  std::cout << "test time @ " << Simulator::Now() << "\n";
   Simulator::Destroy();
   NS_LOG_UNCOND("Done.");
+  std::cout << "Done\n";
 
   //stats.PrintCHEvents();
   //stats.PrintMembershipEvents();
-  stats.PrintClusterAverage(params.runtime.GetSeconds());
+  stats.PrintClusterAverage(params.runtime.GetSeconds()-1);
   stats.OutputCHEventsToCSV(1);
   stats.OutputMembershipToCSV(1);
 

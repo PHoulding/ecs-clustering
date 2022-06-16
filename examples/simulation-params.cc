@@ -31,7 +31,7 @@ namespace ecs {
 std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char* argv[]) {
   /* Default simulation values. */
   // Simulation run time.
-  double optRuntime = 10.0_minutes; //10.0_seconds; 600.0_seconds
+  double optRuntime = 601.0_seconds; //10.0_seconds; 600.0_seconds
 
   double optWaitTime = 30.0_seconds;
   double optStandoffTime = optWaitTime+5.0_seconds;
@@ -41,15 +41,15 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
 
   // Node parameters.
   uint32_t optTotalNodes = 500;                                             //250, 500, 750, 1000
+  // Misnamed - is actually used to determine the number of hops
   uint32_t optNeighborhoodSize = 1;
 
   // Simulation area parameters.
   double optAreaWidth = 2000.0_meters;                                      //2000
   double optAreaLength = 2000.0_meters;                                     //2000
 
-
   // Traveller mobility model parameters.
-  double optTravellerVelocity = 2.0_mps;                                    // 2.0, 5.0, 10.0, 15.0, 18.0
+  double optTravellerVelocity = 5.0_mps;                                    // 2.0, 5.0, 10.0, 15.0, 18.0
 
   // Traveller random 2d walk mobility model parameters.
   // Note: Shi and Chen do not specify any parameters of their random walk
@@ -200,7 +200,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   //result.dataOwners = std::round(optTotalNodes * (optPercentageDataOwners / 100.0));
 
   //result.travellerNodes = optTotalNodes - (optNodesPerPartition * (optRows * optCols));
-  //result.travellerVelocity = travellerVelocityGenerator;
+  result.travellerVelocity = travellerVelocityGenerator;
   //result.travellerDirectionChangePeriod = Seconds(optTravellerWalkTime);
   //result.travellerDirectionChangeDistance = optTravellerWalkDistance;
   //result.travellerWalkMode = travellerWalkMode;

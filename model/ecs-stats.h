@@ -59,11 +59,20 @@ class Stats {
         ~Stats();
         void Reset();
 
+        void IncreaseClusteringMessages();
+        void IncreaseClusterChangeMessages();
         void IncreaseCHCount();
         void DecreaseCHCount();
+        void IncreaseCMemCount();
+        void IncreaseGateCount();
+        void IncreaseGuestCount();
         void IncreaseAverageClusterHeadCount();
-        void PrintClusterAverage(double runtime);
+        void IncreaseClusterSizeCount(uint64_t cluster_size);
+        void IncreaseGateCoverageCount(uint64_t num_heads_covering);
+        void IncreaseAccessPointCount(uint64_t num_access_points);
+        double CalculateAverageClusterSize(double runtime);
 
+        void PrintClusterAverage(double runtime);
         void PrintCHEvents();
         void PrintMembershipEvents();
 
