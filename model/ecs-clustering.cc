@@ -117,7 +117,7 @@ void ecsClusterApp::StartApplication() {
   m_state = State::RUNNING;
   m_node_status = Node_Status::UNSPECIFIED;
   m_inquiry_timeout = 10.0_sec;//ns3::Time::FromDouble(5.0, ns3::Time::Unit::S);
-
+  
 
   //Scheduling of events. Maybe this is where i put the algorithm??
 
@@ -344,8 +344,8 @@ void ecsClusterApp::SendClusterHeadClaim() {
   BroadcastToNeighbors(message);
   m_CH_Claim_flag = true;
   stats.recordCHClaim(m_address, Simulator::Now().GetSeconds());
-  stats.IncreaseClusteringMessages();
-  stats.IncreaseClusterChangeMessages();
+  //stats.IncreaseClusteringMessages();
+  //stats.IncreaseClusterChangeMessages();
   //NS_LOG_UNCOND("CH Claim Sent from " << GetID() << " at " << Simulator::Now());
   //SchedulePrintInformationTable();
   //PrintCustomClusterTable();
@@ -360,15 +360,16 @@ void ecsClusterApp::SendStatus(uint32_t nodeID) {
 void ecsClusterApp::SendCHMeeting(uint32_t nodeID) {
   Ptr<Packet> message = GenerateMeeting();
   SendMessage(Ipv4Address(nodeID), message);
-  stats.IncreaseClusteringMessages();
-  stats.IncreaseClusterChangeMessages();
+  //stats.IncreaseClusteringMessages();
+  //stats.IncreaseClusterChangeMessages();
   NS_LOG_UNCOND("CH Meeting Sent!");
 }
 void ecsClusterApp::SendResign(uint8_t node_status) {
   Ptr<Packet> message = GenerateResign(node_status);
   BroadcastToNeighbors(message);
-  stats.IncreaseClusteringMessages();
-  stats.IncreaseClusterChangeMessages();
+  //std::cout << "resign Routing table: " << GetRoutingTableString();
+  //stats.IncreaseClusteringMessages();
+  //stats.IncreaseClusterChangeMessages();
   if (m_CH_Claim_flag) {
     //NS_LOG_UNCOND("recording CH resign");
     stats.recordCHResign(m_address, Simulator::Now().GetSeconds());
@@ -379,7 +380,7 @@ void ecsClusterApp::SendResign(uint8_t node_status) {
 void ecsClusterApp::SendInquiry() {
   Ptr<Packet> message = GenerateInquiry();
   BroadcastToNeighbors(message);
-  stats.IncreaseClusteringMessages();
+  //stats.IncreaseClusteringMessages();
 //  NS_LOG_UNCOND("Inquiry sent");
 }
 
@@ -539,12 +540,16 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //CH claim received
       //NS_LOG_UNCOND("Claim Received " << std::to_string(GenerateNodeStatusToUint())
       //              << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
+      stats.IncreaseClusterChangeMessages();
+      stats.IncreaseClusteringMessages();
       HandleClaim(srcAddress);
     } else if(message.has_meeting()) {
       //clusterhead meeting, handle by sending number of connected nodes
       //(i.e. information table size) to other. if less table size, resign
       // NS_LOG_UNCOND("Meeting Received " << std::to_string(GenerateNodeStatusToUint())
       //               << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
+      stats.IncreaseClusterChangeMessages();
+      stats.IncreaseClusteringMessages();
       HandleMeeting(srcAddress,message.node_status(),message.meeting().tablesize());
     } else if(message.has_resign()) {
       //clusterhead meeting has occured, and the node broadcasting this message
@@ -553,12 +558,15 @@ void ecsClusterApp::HandleRequest(Ptr<Socket> socket) {
       //message must then ping all neighbors to figure out it's new node status.
       //NS_LOG_UNCOND("CHResign Received - " << NodeStatusToStringFromTable(m_node_status)
       //               << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
+      stats.IncreaseClusterChangeMessages();
+      stats.IncreaseClusteringMessages();
       HandleCHResign(srcAddress,message.node_status());
     } else if(message.has_inquiry()) {
       //Happens when a node needs to learn it's neighbors' node types in order
       //to decide it's own
       // NS_LOG_UNCOND("Inquiry Received " << std::to_string(GenerateNodeStatusToUint())
       //               << " from " << std::to_string(srcAddress) << " to " << GetID() << " at time " << Simulator::Now());
+      stats.IncreaseClusteringMessages();
       HandleInquiry(srcAddress,message.node_status());
     } else if(message.has_status()) {
       //Simple message relaying a given node's node_status to another node.
