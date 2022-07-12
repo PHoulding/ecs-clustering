@@ -49,8 +49,8 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   double optAreaLength = 2000.0_meters;                                     //2000
 
   // Traveller mobility model parameters.
-  double optTravellerVelocity = 5.0_mps;                                    // 2.0, 5.0, 10.0, 15.0, 18.0
-
+  double optTravellerVelocity = 2.0_mps;                                    // 2.0, 5.0, 10.0, 15.0, 18.0
+  double optNodeSpeed = optTravellerVelocity;
   // Traveller random 2d walk mobility model parameters.
   // Note: Shi and Chen do not specify any parameters of their random walk
   //   mobility models.
@@ -63,9 +63,6 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   std::string optRoutingProtocol = "aodv";
   double optWifiRadius = 250.0_meters;                                     // 250.0_meters
 
-  bool optStaggeredStart = false;
-  double optStaggeredVariance = 4.0;
-
   double optRequestTimeout = 0.0_seconds; //sets to 0 to ignore timeouts
 
   // Animation parameters.
@@ -74,14 +71,6 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   CommandLine cmd;
   cmd.AddValue("runTime", "Simulation run time in seconds", optRuntime);
   cmd.AddValue("totalNodes", "Total number of nodes in the simulation", optTotalNodes);
-  cmd.AddValue(
-      "staggeredStart",
-      "If the application starting should be staggered across the different nodes",
-      optStaggeredStart);
-  cmd.AddValue(
-      "staggeredStartVariance",
-      "The variance used to generate the application startup variance",
-      optStaggeredVariance);
   cmd.AddValue(
       "waitTime",
       "number of seconds to wait before starting the data access application",
@@ -115,6 +104,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
   cmd.AddValue("routing", "One of either 'DSDV' or 'AODV'", optRoutingProtocol);
   cmd.AddValue("wifiRadius", "The radius of connectivity for each node in meters", optWifiRadius);
   cmd.AddValue("standoffTime", "The max time for nodes to sleep (they are given a random from 0 to this)", optStandoffTime);
+  //cmd.AddValue("nodeSpeed", "The speed at which nodes are moving, for stats purposes", optNodeSpeed);
   // cmd.AddValue("animationXml", "Output file path for NetAnim trace file",
   // animationTraceFilePath);
   cmd.Parse(argc, argv);
@@ -131,11 +121,6 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
       std::cerr << "Total number of nodes (" << optTotalNodes << ") is negative"
                 << std::endl;
       return std::pair<SimulationParameters, bool>(result, false);
-  }
-  if (optStaggeredVariance < 0) {
-    std::cerr << "Startup variance can not be negative (" << optStaggeredVariance << ")"
-              << std::endl;
-    return std::pair<SimulationParameters, bool>(result, false);
   }
   // if (optForwardingThreshold < 0 || optForwardingThreshold > 1) {
   //   std::cerr << "Forwarding Threshold (" << optForwardingThreshold << ") is not a probability" << std::endl;
@@ -155,6 +140,11 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
       std::cerr << "Traveller velocity (" << optTravellerVelocity << ") is negative"
                 << std::endl;
       return std::pair<SimulationParameters, bool>(result, false);
+  }
+  if(optNodeSpeed < 0) {
+    std::cerr << "node speed (" << optNodeSpeed << ") is negative"
+                << std::endl;
+    return std::pair<SimulationParameters, bool>(result, false);
   }
   if (optTravellerWalkTime < 0) {
       std::cerr << "Traveller walk time (" << optTravellerWalkTime << ") is negative"
@@ -201,6 +191,7 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
 
   //result.travellerNodes = optTotalNodes - (optNodesPerPartition * (optRows * optCols));
   result.travellerVelocity = travellerVelocityGenerator;
+  result.nodeSpeed = optTravellerVelocity;
   //result.travellerDirectionChangePeriod = Seconds(optTravellerWalkTime);
   //result.travellerDirectionChangeDistance = optTravellerWalkDistance;
   //result.travellerWalkMode = travellerWalkMode;
@@ -215,9 +206,6 @@ std::pair<SimulationParameters, bool> SimulationParameters::parse(int argc, char
 
   result.routingProtocol = routingType;
   result.wifiRadius = optWifiRadius;
-
-  result.staggeredStart = optStaggeredStart;
-  result.staggeredVariance = optStaggeredVariance;
 
   result.netanimTraceFilePath = animationTraceFilePath;
 

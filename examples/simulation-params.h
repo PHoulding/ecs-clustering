@@ -50,6 +50,7 @@ class SimulationParameters {
     SimulationArea area;
     /// The velocity of the travellers.
     ns3::Ptr<ns3::ConstantRandomVariable> travellerVelocity;
+    double nodeSpeed;
     /// The period after which traveller nodes should change their direction if
     /// the travellerWalkMode is MODE_TIME.
     ns3::Time travellerDirectionChangePeriod;

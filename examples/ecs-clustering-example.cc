@@ -93,16 +93,12 @@ main (int argc, char *argv[])
   NS_LOG_UNCOND("Setting up wireless devices for all nodes...");
   YansWifiPhyHelper wifiPhy = YansWifiPhyHelper();
   wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
-  // wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
-  // wifiPhy.EnablePcap("ecs-out", allAdHocNodes);
+
 
   auto wifiChannel = YansWifiChannelHelper::Default();
   wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
 
-
-  /*This part needs to be looked into by me. Unsure what connectivity range in my specific paper - will check later*/
-
-  // Shi and Chen refer to a 100m radius of connectivity for each node.
+  // Yu and Chong refer to a 250m radius of connectivity for each node.
   // They do not assume any propagation loss model, so we use a constant
   // propagation loss model which amounts to having connectivity withing the
   // radius, and having no connectivity outside the radius.
@@ -119,21 +115,15 @@ main (int argc, char *argv[])
   wifi.SetStandard(WIFI_STANDARD_80211b);
 
   NS_LOG_UNCOND("Assigning MAC addresses in ad hoc mode...");
-  //auto adhocDevices = wifi.Install(wifiPhy, wifiMac, allAdHocNodes);
   NetDeviceContainer adhocDevices = wifi.Install(wifiPhy, wifiMac, allAdHocNodes);
 
   NS_LOG_UNCOND("Setting up Internet stacks...");
   InternetStackHelper internet;
 
-  // if(params.routingProtocol == RoutingType::DSDV) {
-  //   NS_LOG_DEBUG("Using DSDV routing");
-  //   DsdvHelper dsdv;
-  //   internet.SetRoutingHelper(dsdv);
-  // } else if(params.routingProtocol == RoutingType::AODV) {
   NS_LOG_DEBUG("Using AODV routing");
   AodvHelper aodv;
   internet.SetRoutingHelper(aodv);
-  //}
+
   internet.Install(allAdHocNodes);
   Ipv4AddressHelper adhocAddresses;
   adhocAddresses.SetBase("10.1.0.0", "255.255.0.0");
@@ -145,14 +135,8 @@ main (int argc, char *argv[])
   ecs.SetAttribute("WaitTime", TimeValue(params.waitTime));
 
   ApplicationContainer ecsApps = ecs.Install(allAdHocNodes);
-  // if(params.staggeredStart) {
-  //   Ptr<NormalRandomVariable> jitter = CreateObject<NormalRandomVariable>();
-  //   jitter->SetAttribute("Mean", DoubleValue(0));
-  //   jitter->SetAttribute("Variance", DoubleValue(params.staggeredVariance));
-  //   ecsApps.StartWithJitter(Seconds(0), jitter);
-  // } else {
+ 
   ecsApps.Start(Seconds(0));
-  //}
   ecsApps.Stop(params.runtime);
 
   Stats stats;
@@ -163,25 +147,17 @@ main (int argc, char *argv[])
   NS_LOG_UNCOND("Max running time is " << Simulator::GetMaximumSimulationTime());
   NS_LOG_UNCOND("With " << params.totalNodes << " nodes");
 
-  std::cout << "Running simulation for " << params.runtime.GetSeconds() << " seconds...\n";
-  std::cout << "params.runtime = " << params.runtime + 1.0_sec << "\n";
-  std::cout << "Max running time is " << Simulator::GetMaximumSimulationTime() << "\n";
-  std::cout << "With "  << params.totalNodes << " nodes\n";
-
   Simulator::Stop(params.runtime + 1.0_sec);
 
   Simulator::Run();
   NS_LOG_UNCOND("test time @ " << Simulator::Now());
-  std::cout << "test time @ " << Simulator::Now() << "\n";
+  //std::cout << "test time @ " << Simulator::Now() << "\n";
   Simulator::Destroy();
   NS_LOG_UNCOND("Done.");
-  std::cout << "Done\n";
-
-  //stats.PrintCHEvents();
-  //stats.PrintMembershipEvents();
-  stats.PrintClusterAverage(params.runtime.GetSeconds()-1);
-  stats.OutputCHEventsToCSV(1);
-  stats.OutputMembershipToCSV(1);
+  //std::cout << "Done\n";
+  stats.PrintMessageTotals();
+  stats.PrintClusterAverage(params.seed, params.nodeSpeed, params.totalNodes);
+  //stats.WriteFinalStats(params.runtime.GetSeconds()-1, params.totalNodes, params.nodeSpeed, params.seed);
 
   ecsClusterApp::CleanUp();
 

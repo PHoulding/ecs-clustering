@@ -41,6 +41,14 @@ class ecsClusterApp : public Application {
         m_node_status(Node_Status::UNSPECIFIED),
         m_neighborhoodHops(1){};
 
+    struct InformationTableRow {
+      uint32_t nodeID;
+      Node_Status status;
+      //update to a list
+      uint32_t clusterHeadID;
+      uint32_t accessPointID;
+      double entryTime;
+    };
 
     //implement these two
     Node_Status GetStatus() const;
@@ -64,6 +72,9 @@ class ecsClusterApp : public Application {
     Time random_m_standoff_time;
     Time m_inquiry_timeout;
     Time m_waitTime;
+    Time m_hello_message_timeout;
+    Time m_table_scan_timeout;
+    Time m_valid_entry_timeout;
 
     Ptr<Socket> m_socket_recv;
     Ptr<Socket> m_neighborhood_socket;
@@ -84,18 +95,14 @@ class ecsClusterApp : public Application {
     Ptr<Packet> GenerateMeeting();
     Ptr<Packet> GenerateResponse(uint64_t responseTo);
     Ptr<Packet> GenerateResign(uint8_t node_status);
-    Ptr<Packet> GenerateInquiry();
 
-    // EventId m_election_watchdog_event;
-    // EventId m_replica_announcement_event;
     EventId m_ping_event;
-    // EventId m_election_results_event;
     EventId m_table_update_event;
     EventId m_CH_claim_event;
-    EventId m_inquiry_event;
     EventId m_check_CHResign_event;
     EventId m_print_table_event;
-
+    EventId m_hello_event;
+    EventId m_table_scan_event;
 
     void BroadcastToNeighbors(Ptr<Packet> packet);
     void SendMessage(Ipv4Address dest, Ptr<Packet> packet);
@@ -105,16 +112,16 @@ class ecsClusterApp : public Application {
     void SendStatus(uint32_t nodeID);
     void SendCHMeeting(uint32_t nodeID);
     void SendResign(uint8_t node_status);
-    void SendInquiry();
 
     void SchedulePing();
     void ScheduleWakeup();
     void ScheduleClusterHeadClaim();
-    void ScheduleInquiry();
     void ScheduleRefreshRoutingTable();
     void SchedulePrintInformationTable();
     void ScheduleHeadPrintTable();
     void ScheduleAverageRecording();
+    void ScheduleScan();
+    void ScheduleHello();
 
     void HandleRequest(Ptr<Socket> socket);
     void HandlePing(uint32_t nodeID, uint8_t node_status);
@@ -123,7 +130,6 @@ class ecsClusterApp : public Application {
     //create getNeighborhoodSize method
     void HandleMeeting(uint32_t nodeID, uint8_t node_status, uint64_t neighborhood_size);
     void HandleCHResign(uint32_t nodeID, uint8_t node_status);
-    void HandleInquiry(uint32_t nodeID, uint8_t node_status);
     void HandleStatus(uint32_t nodeId, uint8_t node_status);
 
     bool CheckDuplicateMessage(uint64_t messageID);
@@ -134,16 +140,14 @@ class ecsClusterApp : public Application {
     uint64_t GenerateMessageID();
     std::string NodeStatusToStringFromTable(Node_Status status);
 
-
-    void ScheduleClusterFormationWatchdog();
-    void ClusterFormation();
-
     std::string GetRoutingTableString();
     void RefreshRoutingTable();
     void RefreshInformationTable();
     void CheckCHShouldResign();
     uint64_t GetNumHeadsCovering();
     uint64_t GetNumAccessPoints();
+    uint32_t GetMemberClusterHeadsID();
+    std::list<uint32_t> GetGatewayClusterHeadIDs();
 
     void CancelEventMap(std::map<uint64_t, EventId> events);
     void CancelEventMap(std::map<uint32_t, EventId> events);
@@ -151,7 +155,8 @@ class ecsClusterApp : public Application {
 
 
     uint32_t m_address;
-    std::map<uint32_t, Node_Status> m_informationTable;
+    //std::map<uint32_t, std::pair<Node_Status, double>> m_informationTable;
+    std::list<InformationTableRow> m_informationTable;
 
     std::set<uint64_t> m_received_messages;
 

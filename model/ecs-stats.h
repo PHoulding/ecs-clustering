@@ -31,11 +31,21 @@ struct CH_Event {
     double event_time;
     std::string event;
 };
+struct Open_Claim {
+    uint32_t node_address;
+    double event_time;
+};
+
 struct Member_Event {
     std::string node_status;
     uint32_t node_address;
     double event_time;
     std::string event;
+    uint32_t ch_address;
+};
+struct Open_Membership {
+    uint32_t node_address;
+    double event_time;
     uint32_t ch_address;
 };
 
@@ -59,6 +69,14 @@ class Stats {
         ~Stats();
         void Reset();
 
+        void incPing();
+        void incClaim();
+        void incStatus();
+        void incMeeting();
+        void incResign();
+        
+        void PrintMessageTotals();
+
         void IncreaseClusteringMessages();
         void IncreaseClusterChangeMessages();
         void IncreaseCHCount();
@@ -72,7 +90,9 @@ class Stats {
         void IncreaseAccessPointCount(uint64_t num_access_points);
         double CalculateAverageClusterSize(double runtime);
 
-        void PrintClusterAverage(double runtime);
+        void WriteFinalStats(double runtime, uint16_t num_nodes, double node_speed, uint32_t seed);
+
+        void PrintClusterAverage(uint32_t seed, double node_speed, uint16_t num_nodes);
         void PrintCHEvents();
         void PrintMembershipEvents();
 
@@ -86,6 +106,8 @@ class Stats {
         void recordMembershipEnd(std::string node_status, uint32_t node_address, double event_time, uint32_t ch_address);
         void recordMemberBecomeStandalone(uint32_t node_address, double event_time);
 
+        double CalculateCHLifetime();
+        double CalculateMembershipLifetime();
 
 };
 }; //namespace ecs

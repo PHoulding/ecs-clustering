@@ -66,7 +66,7 @@ A simple tool to integrate protocol buffers into your build system.
 """
 
 class protoc(Task):
-    run_str = '${PROTOC} ${SRC} --cpp_out=. -I..'  # set this to ../.. when running with sem and to .. when running normally
+    run_str = '${PROTOC} ${SRC} --cpp_out=. -I../..'  # set this to ../.. when running with sem and to .. when running normally
     color = 'BLUE'
     ext_out = ['pb.h', 'pb.cc']
 
