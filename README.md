@@ -10,6 +10,8 @@ The hope is to implement the Efficient Clustering Scheme in order to simulate
 Mobile Ad hoc Networks (MANETs) in order to better understand how density affects
 these networks.
 
+The goal of this project was to attempt to recreate the Efficient Clustering Scheme of NS-3 based on the original paper:
+>Yu JY, Chong PHJ. An efficient clustering scheme for large and dense mobile ad hoc networks (MANETs). Computer Communications. 2006;30(1):5-16. doi:10.1016/j.comcom.2006.07.014.
 
 ## Building the container
 
